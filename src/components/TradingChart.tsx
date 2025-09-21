@@ -1,28 +1,102 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickData, Time, CandlestickSeries } from 'lightweight-charts';
 
 interface CandleData {
-  time: string;
+  time: Time;
   open: number;
   high: number;
   low: number;
   close: number;
-  volume: number;
 }
 
-const mockCandleData: CandleData[] = [
-  { time: '09:00', open: 113500, high: 114200, low: 113000, close: 113900, volume: 1.2 },
-  { time: '09:05', open: 113900, high: 114500, low: 113800, close: 114100, volume: 0.8 },
-  { time: '09:10', open: 114100, high: 114300, low: 113700, close: 113800, volume: 1.5 },
-  { time: '09:15', open: 113800, high: 114000, low: 113500, close: 113750, volume: 0.9 },
-  { time: '09:20', open: 113750, high: 114100, low: 113600, close: 114000, volume: 1.1 },
+const mockCandleData: CandlestickData[] = [
+  { time: 1704067200 as Time, open: 113500, high: 114200, low: 113000, close: 113900 },
+  { time: 1704153600 as Time, open: 113900, high: 114500, low: 113800, close: 114100 },
+  { time: 1704240000 as Time, open: 114100, high: 114300, low: 113700, close: 113800 },
+  { time: 1704326400 as Time, open: 113800, high: 114000, low: 113500, close: 113750 },
+  { time: 1704412800 as Time, open: 113750, high: 114100, low: 113600, close: 114000 },
+  { time: 1704499200 as Time, open: 114000, high: 114800, low: 113900, close: 114600 },
+  { time: 1704585600 as Time, open: 114600, high: 115200, low: 114400, close: 114900 },
+  { time: 1704672000 as Time, open: 114900, high: 115500, low: 114700, close: 115200 },
+  { time: 1704758400 as Time, open: 115200, high: 115800, low: 115000, close: 115600 },
+  { time: 1704844800 as Time, open: 115600, high: 116000, low: 115400, close: 115800 },
 ];
 
 const timeframes = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '8h', '12h', '1d', '3d', '1w', '1M'];
 
 export default function TradingChart() {
   const [selectedTimeframe, setSelectedTimeframe] = useState('15m');
+  const chartRef = useRef<HTMLDivElement>(null);
+  const chartRef2 = useRef<IChartApi | null>(null);
+  const seriesRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (chartRef.current && !chartRef2.current) {
+      // Create the chart
+      const chart = createChart(chartRef.current, {
+        layout: {
+          background: { type: ColorType.Solid, color: '#000000' },
+          textColor: '#ffffff',
+        },
+        width: chartRef.current.clientWidth,
+        height: chartRef.current.clientHeight,
+        grid: {
+          vertLines: { color: '#374151' },
+          horzLines: { color: '#374151' },
+        },
+        crosshair: {
+          mode: 1,
+        },
+        rightPriceScale: {
+          borderColor: '#374151',
+          textColor: '#9ca3af',
+        },
+        timeScale: {
+          borderColor: '#374151',
+        },
+      });
+
+      // Add candlestick series
+      const candlestickSeries = chart.addSeries(CandlestickSeries, {
+        upColor: '#10b981',
+        downColor: '#ef4444',
+        borderDownColor: '#ef4444',
+        borderUpColor: '#10b981',
+        wickDownColor: '#ef4444',
+        wickUpColor: '#10b981',
+      });
+
+      // Set the data
+      candlestickSeries.setData(mockCandleData);
+
+      // Store references
+      chartRef2.current = chart;
+      seriesRef.current = candlestickSeries;
+
+      // Handle resize
+      const handleResize = () => {
+        if (chartRef.current && chartRef2.current) {
+          chartRef2.current.applyOptions({
+            width: chartRef.current.clientWidth,
+            height: chartRef.current.clientHeight,
+          });
+        }
+      };
+
+      window.addEventListener('resize', handleResize);
+
+      // Cleanup function
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        if (chartRef2.current) {
+          chartRef2.current.remove();
+          chartRef2.current = null;
+        }
+      };
+    }
+  }, []);
 
   return (
     <Card className="bg-trading-panel border-trading-border p-0">
@@ -59,34 +133,8 @@ export default function TradingChart() {
       </div>
 
       {/* Chart Area */}
-      <div className="h-96 p-4 relative bg-black">
-        <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-          <div className="text-center">
-            <div className="text-2xl font-mono mb-2">₿ 113,900.00</div>
-            <div className="text-sm">Chart visualization would be rendered here</div>
-            <div className="text-xs mt-2 opacity-60">
-              Mock candlestick data: {mockCandleData.length} candles loaded
-            </div>
-          </div>
-        </div>
-        
-        {/* Mock grid lines */}
-        <div className="absolute inset-0 pointer-events-none">
-          {[...Array(8)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute w-full h-px bg-chart-grid"
-              style={{ top: `${(i + 1) * 12.5}%` }}
-            />
-          ))}
-          {[...Array(10)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute h-full w-px bg-chart-grid"
-              style={{ left: `${(i + 1) * 10}%` }}
-            />
-          ))}
-        </div>
+      <div className="h-96">
+        <div ref={chartRef} className="w-full h-full" />
       </div>
     </Card>
   );
