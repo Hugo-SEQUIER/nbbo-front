@@ -1,4 +1,5 @@
 import { Card } from '@/components/ui/card';
+import { useWallet } from '@/hooks/useWallet';
 
 const exchangeData = {
   markPrice: 112900.00,
@@ -9,6 +10,8 @@ const exchangeData = {
 };
 
 export default function ExchangeBanner() {
+  const { authenticated, connectWallet, disconnectWallet, getDisplayAddress } = useWallet();
+  
   return (
     <div className="px-4 pb-4">
       <Card className="bg-trading-header border-trading-border">
@@ -18,7 +21,9 @@ export default function ExchangeBanner() {
           <div className="flex-1">
             <div className="text-xs text-muted-foreground">ACCOUNT VALUE</div>
             <div className="text-lg font-mono font-bold text-foreground">$0.00</div>
-            <div className="text-xs text-muted-foreground">Clearinghouse State</div>
+            <div className="text-xs text-muted-foreground">
+              {authenticated ? `Connected: ${getDisplayAddress()}` : 'Clearinghouse State'}
+            </div>
           </div>
 
           {/* Mark Price */}
@@ -58,9 +63,21 @@ export default function ExchangeBanner() {
 
           {/* Connect Wallet Button */}
           <div className="flex-1 flex justify-end">
-            <button className="px-4 py-2 bg-crypto-green text-black font-medium text-sm rounded hover:bg-crypto-green/90 transition-colors">
-              CONNECT WALLET
-            </button>
+            {authenticated ? (
+              <button 
+                onClick={disconnectWallet}
+                className="px-4 py-2 bg-red-600 text-white font-medium text-sm rounded hover:bg-red-700 transition-colors"
+              >
+                DISCONNECT
+              </button>
+            ) : (
+              <button 
+                onClick={connectWallet}
+                className="px-4 py-2 bg-crypto-green text-black font-medium text-sm rounded hover:bg-crypto-green/90 transition-colors"
+              >
+                CONNECT WALLET
+              </button>
+            )}
           </div>
           </div>
         </div>
