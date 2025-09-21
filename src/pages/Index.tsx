@@ -5,35 +5,39 @@ import OrderBook from '@/components/OrderBook';
 import TradingPanel from '@/components/TradingPanel';
 import PositionsTable from '@/components/PositionsTable';
 
-export default function TradingPage() {
+const Index = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Exchange Banner */}
-      <ExchangeBanner />
-      
       {/* Exchange Selector */}
       <ExchangeSelector />
       
-      {/* Main Trading Layout - 3 Column Layout */}
-      <div className="flex h-[calc(100vh-160px)]">
-        {/* Left Column - Trading Panel */}
-        <div className="w-80 border-r border-trading-border">
+      {/* Top Banner */}
+      <ExchangeBanner />
+
+      {/* Main Trading Interface */}
+      <div className="flex gap-4 p-4">
+        {/* Left Side - Trading Panel */}
+        <div className="w-80 space-y-4">
           <TradingPanel />
         </div>
-        
-        {/* Middle Column - Chart */}
-        <div className="flex-1 flex flex-col">
+
+        {/* Center - Chart */}
+        <div className="flex-1">
           <TradingChart />
-          <div className="flex-1 p-4">
-            <PositionsTable />
-          </div>
         </div>
-        
-        {/* Right Column - Order Book */}
-        <div className="w-80 border-l border-trading-border">
+
+        {/* Right Side - Order Book */}
+        <div className="w-80">
           <OrderBook />
         </div>
       </div>
+
+      {/* Bottom - Positions Table */}
+      <div className="px-4 pb-4">
+        <PositionsTable />
+      </div>
     </div>
   );
-}
+};
+
+export default Index;

@@ -1,5 +1,3 @@
-"use client";
-
 import { Card } from '@/components/ui/card';
 
 interface OrderBookEntry {
@@ -50,7 +48,7 @@ export default function OrderBook() {
               className="grid grid-cols-3 gap-4 text-xs py-1 px-1 relative overflow-hidden rounded"
             >
               <div 
-                className="absolute right-0 top-0 h-full bg-ask-background transition-all duration-300"
+                className="absolute right-0 top-0 h-full bg-ask-bg transition-all duration-300"
                 style={{ width: `${(ask.size / 0.03) * 100}%` }}
               />
               <div className="relative text-crypto-red font-mono">
@@ -82,7 +80,7 @@ export default function OrderBook() {
               className="grid grid-cols-3 gap-4 text-xs py-1 px-1 relative overflow-hidden rounded"
             >
               <div 
-                className="absolute right-0 top-0 h-full bg-bid-background transition-all duration-300"
+                className="absolute right-0 top-0 h-full bg-bid-bg transition-all duration-300"
                 style={{ width: `${(bid.size / 0.03) * 100}%` }}
               />
               <div className="relative text-crypto-green font-mono">

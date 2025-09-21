@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -62,119 +60,33 @@ export default function TradingChart() {
 
       {/* Chart Area */}
       <div className="h-96 p-4 relative bg-black">
-        <svg className="w-full h-full" viewBox="0 0 800 350">
-          {/* Define gradients */}
-          <defs>
-            <linearGradient id="gridGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="rgba(255,255,255,0.1)" />
-              <stop offset="100%" stopColor="rgba(255,255,255,0.05)" />
-            </linearGradient>
-          </defs>
-          
-          {/* Grid lines - properly aligned */}
-          {[...Array(7)].map((_, i) => {
-            const y = 50 + (i * 50);
-            return (
-              <line
-                key={`h-${i}`}
-                x1="60"
-                y1={y}
-                x2="750"
-                y2={y}
-                stroke="#333333"
-                strokeWidth="1"
-                opacity="0.5"
-              />
-            );
-          })}
-          {[...Array(8)].map((_, i) => {
-            const x = 100 + (i * 100);
-            return (
-              <line
-                key={`v-${i}`}
-                x1={x}
-                y1="50"
-                x2={x}
-                y2="350"
-                stroke="#333333"
-                strokeWidth="1"
-                opacity="0.3"
-              />
-            );
-          })}
-          
-          {/* Candlestick chart */}
-          {mockCandleData.map((candle, index) => {
-            const x = 120 + (index * 140);
-            const priceRange = 1200; // 114200 - 113000
-            const chartHeight = 300;
-            const basePrice = 113000;
-            
-            const openY = 350 - (((candle.open - basePrice) / priceRange) * chartHeight);
-            const closeY = 350 - (((candle.close - basePrice) / priceRange) * chartHeight);
-            const highY = 350 - (((candle.high - basePrice) / priceRange) * chartHeight);
-            const lowY = 350 - (((candle.low - basePrice) / priceRange) * chartHeight);
-            
-            const isGreen = candle.close > candle.open;
-            const bodyHeight = Math.abs(closeY - openY);
-            const bodyY = Math.min(openY, closeY);
-            
-            return (
-              <g key={index}>
-                {/* High-Low line */}
-                <line
-                  x1={x + 15}
-                  y1={highY}
-                  x2={x + 15}
-                  y2={lowY}
-                  stroke={isGreen ? '#10b981' : '#ef4444'}
-                  strokeWidth="2"
-                />
-                {/* Open tick */}
-                <line
-                  x1={x + 5}
-                  y1={openY}
-                  x2={x + 15}
-                  y2={openY}
-                  stroke={isGreen ? '#10b981' : '#ef4444'}
-                  strokeWidth="2"
-                />
-                {/* Close tick */}
-                <line
-                  x1={x + 15}
-                  y1={closeY}
-                  x2={x + 25}
-                  y2={closeY}
-                  stroke={isGreen ? '#10b981' : '#ef4444'}
-                  strokeWidth="2"
-                />
-                {/* Body */}
-                <rect
-                  x={x + 5}
-                  y={bodyY}
-                  width="20"
-                  height={Math.max(bodyHeight, 2)}
-                  fill={isGreen ? '#10b981' : '#ef4444'}
-                  opacity="0.8"
-                />
-              </g>
-            );
-          })}
-          
-          {/* Price labels */}
-          <text x="10" y="60" fill="#ffffff" fontSize="12" fontFamily="monospace">
-            $114,200
-          </text>
-          <text x="10" y="160" fill="#ffffff" fontSize="12" fontFamily="monospace">
-            $113,600
-          </text>
-          <text x="10" y="260" fill="#ffffff" fontSize="12" fontFamily="monospace">
-            $113,000
-          </text>
-          <text x="10" y="360" fill="#ffffff" fontSize="12" fontFamily="monospace">
-            $112,400
-          </text>
-        </svg>
+        <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+          <div className="text-center">
+            <div className="text-2xl font-mono mb-2">₿ 113,900.00</div>
+            <div className="text-sm">Chart visualization would be rendered here</div>
+            <div className="text-xs mt-2 opacity-60">
+              Mock candlestick data: {mockCandleData.length} candles loaded
+            </div>
+          </div>
+        </div>
+        
+        {/* Mock grid lines */}
+        <div className="absolute inset-0 pointer-events-none">
+          {[...Array(8)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-full h-px bg-chart-grid"
+              style={{ top: `${(i + 1) * 12.5}%` }}
+            />
+          ))}
+          {[...Array(10)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute h-full w-px bg-chart-grid"
+              style={{ left: `${(i + 1) * 10}%` }}
+            />
+          ))}
+        </div>
       </div>
     </Card>
   );
