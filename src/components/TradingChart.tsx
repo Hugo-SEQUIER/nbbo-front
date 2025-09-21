@@ -1,40 +1,143 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickData, Time, CandlestickSeries } from 'lightweight-charts';
+import { useChartData } from '@/hooks/useChartData';
 
 interface CandleData {
-  time: string;
+  time: Time;
   open: number;
   high: number;
   low: number;
   close: number;
-  volume: number;
 }
 
-const mockCandleData: CandleData[] = [
-  { time: '09:00', open: 113500, high: 114200, low: 113000, close: 113900, volume: 1.2 },
-  { time: '09:05', open: 113900, high: 114500, low: 113800, close: 114100, volume: 0.8 },
-  { time: '09:10', open: 114100, high: 114300, low: 113700, close: 113800, volume: 1.5 },
-  { time: '09:15', open: 113800, high: 114000, low: 113500, close: 113750, volume: 0.9 },
-  { time: '09:20', open: 113750, high: 114100, low: 113600, close: 114000, volume: 1.1 },
-];
+// Helper function to convert API data to chart format
+const convertToChartData = (apiData: any[]): CandlestickData[] => {
+  return apiData.map(item => ({
+    time: (item.timestamp / 1000) as Time, // Convert milliseconds to seconds
+    open: item.open,
+    high: item.high,
+    low: item.low,
+    close: item.close,
+  }));
+};
 
-const timeframes = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '8h', '12h', '1d', '3d', '1w', '1M'];
+const timeframes = ['1m', '5m', '15m', '1h', '4h', '1d'];
 
 export default function TradingChart() {
   const [selectedTimeframe, setSelectedTimeframe] = useState('15m');
+  const chartRef = useRef<HTMLDivElement>(null);
+  const chartRef2 = useRef<IChartApi | null>(null);
+  const seriesRef = useRef<any>(null);
+  
+  // Fetch real-time chart data
+  const { data: chartData, loading, error, lastUpdate, justUpdated, refetch } = useChartData('BTC', selectedTimeframe);
+
+  useEffect(() => {
+    if (chartRef.current && !chartRef2.current) {
+      // Create the chart
+      const chart = createChart(chartRef.current, {
+        layout: {
+          background: { type: ColorType.Solid, color: '#000000' },
+          textColor: '#ffffff',
+        },
+        width: chartRef.current.clientWidth,
+        height: chartRef.current.clientHeight,
+        grid: {
+          vertLines: { color: '#374151' },
+          horzLines: { color: '#374151' },
+        },
+        crosshair: {
+          mode: 1,
+        },
+        rightPriceScale: {
+          borderColor: '#374151',
+          textColor: '#9ca3af',
+        },
+        timeScale: {
+          borderColor: '#374151',
+        },
+      });
+
+      // Add candlestick series
+      const candlestickSeries = chart.addSeries(CandlestickSeries, {
+        upColor: '#10b981',
+        downColor: '#ef4444',
+        borderDownColor: '#ef4444',
+        borderUpColor: '#10b981',
+        wickDownColor: '#ef4444',
+        wickUpColor: '#10b981',
+      });
+
+      // Set the initial data (will be updated when API data comes in)
+      candlestickSeries.setData([]);
+
+      // Store references
+      chartRef2.current = chart;
+      seriesRef.current = candlestickSeries;
+
+      // Handle resize
+      const handleResize = () => {
+        if (chartRef.current && chartRef2.current) {
+          chartRef2.current.applyOptions({
+            width: chartRef.current.clientWidth,
+            height: chartRef.current.clientHeight,
+          });
+        }
+      };
+
+      window.addEventListener('resize', handleResize);
+
+      // Cleanup function
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        if (chartRef2.current) {
+          chartRef2.current.remove();
+          chartRef2.current = null;
+        }
+      };
+    }
+  }, []);
+
+  // Update chart data when new data comes from API
+  useEffect(() => {
+    if (seriesRef.current && chartData.length > 0) {
+      console.log('Updating chart with', chartData.length, 'data points'); // Debug log
+      const convertedData = convertToChartData(chartData);
+      seriesRef.current.setData(convertedData);
+    }
+  }, [chartData]);
+
+  // Handle timeframe changes - trigger new API call
+  const handleTimeframeChange = (timeframe: string) => {
+    console.log('Timeframe changed to:', timeframe); // Debug log
+    setSelectedTimeframe(timeframe);
+  };
 
   return (
     <Card className="bg-trading-panel border-trading-border p-0">
       {/* Chart Header */}
       <div className="flex items-center justify-between p-4 border-b border-trading-border">
         <div className="flex items-center gap-4">
-          <h3 className="text-lg font-semibold text-foreground">BTC/USDT</h3>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Range:</span>
-            <Button variant="outline" size="sm" className="h-6 px-2 text-xs">1h</Button>
-            <Button variant="outline" size="sm" className="h-6 px-2 text-xs">2h</Button>
-            <Button variant="outline" size="sm" className="h-6 px-2 text-xs">4h</Button>
+          <h3 className="text-lg font-semibold text-foreground">BTC/USD</h3>
+          
+          {/* Status indicators */}
+          <div className="flex items-center gap-2 text-sm">
+            {/* Connection status */}
+            <div className="flex items-center gap-1">
+              <div className={`w-2 h-2 rounded-full ${loading ? 'bg-yellow-500' : error ? 'bg-red-500' : 'bg-green-500'}`} />
+              <span className="text-muted-foreground">
+                {loading ? 'Loading...' : error ? 'Error' : 'Live'}
+              </span>
+            </div>
+            
+            {/* Last update */}
+            {lastUpdate && (
+              <span className={`text-xs ${justUpdated ? 'text-green-400' : 'text-muted-foreground'}`}>
+                Last: {lastUpdate.toLocaleTimeString()}
+              </span>
+            )}
           </div>
         </div>
         
@@ -50,7 +153,7 @@ export default function TradingChart() {
                   ? 'bg-crypto-green text-black font-medium' 
                   : 'text-muted-foreground hover:bg-trading-hover'
               }`}
-              onClick={() => setSelectedTimeframe(tf)}
+              onClick={() => handleTimeframeChange(tf)}
             >
               {tf}
             </Button>
@@ -59,34 +162,17 @@ export default function TradingChart() {
       </div>
 
       {/* Chart Area */}
-      <div className="h-96 p-4 relative bg-black">
-        <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-          <div className="text-center">
-            <div className="text-2xl font-mono mb-2">₿ 113,900.00</div>
-            <div className="text-sm">Chart visualization would be rendered here</div>
-            <div className="text-xs mt-2 opacity-60">
-              Mock candlestick data: {mockCandleData.length} candles loaded
+      <div className="h-96 relative">
+        {error ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-trading-panel">
+            <div className="text-center">
+              <div className="text-red-500 mb-2">⚠️ Chart Error</div>
+              <div className="text-sm text-muted-foreground">{error}</div>
             </div>
           </div>
-        </div>
-        
-        {/* Mock grid lines */}
-        <div className="absolute inset-0 pointer-events-none">
-          {[...Array(8)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute w-full h-px bg-chart-grid"
-              style={{ top: `${(i + 1) * 12.5}%` }}
-            />
-          ))}
-          {[...Array(10)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute h-full w-px bg-chart-grid"
-              style={{ left: `${(i + 1) * 10}%` }}
-            />
-          ))}
-        </div>
+        ) : (
+          <div ref={chartRef} className="w-full h-full" />
+        )}
       </div>
     </Card>
   );
