@@ -4,28 +4,25 @@ import { useUserPosition } from '@/hooks/useUserData';
 import { useRedStonePrice } from '../hooks/useRedStonePrice';
 import { usePythPrice } from '../hooks/usePythPrice';
 
-
 const exchangeData = {
   markPrice: 112900.00,
   midPrice: 113900.00
 };
 
 export default function ExchangeBanner() {
-
   const { authenticated, connectWallet, disconnectWallet, getDisplayAddress, getWalletAddress } = useWallet();
   const address = getWalletAddress();
   const { data: positionData } = useUserPosition(address);
   const { price: redstonePrice, loading: redstoneLoading, error: redstoneError, justUpdated: redstoneJustUpdated } = useRedStonePrice(10000);
   const { price: pythPrice, loading: pythLoading, error: pythError, justUpdated: pythJustUpdated } = usePythPrice(10000);
 
-  
   return (
     <div className="px-4 pb-4">
       <Card className="bg-trading-header border-trading-border">
         <div className="px-6 py-3">
           <div className="flex items-center justify-between w-full">
             {/* Account info */}
-            <div className="flex-1">
+            <div>
               <div className="text-xs text-muted-foreground">ACCOUNT VALUE</div>
               <div className="text-lg font-mono font-bold text-foreground">
                 {authenticated && positionData?.success && positionData.data?.[0] 
@@ -39,7 +36,7 @@ export default function ExchangeBanner() {
             </div>
 
             {/* Best Bid/Ask Block */}
-            <div className="flex-1">
+            <div>
               <div className="flex justify-between text-xs text-muted-foreground mb-1">
                 <span>BEST BID</span>
                 <span>BEST ASK</span>
@@ -53,7 +50,7 @@ export default function ExchangeBanner() {
             </div>
 
             {/* Mark Price */}
-            <div className="flex-1">
+            <div>
               <div className="text-xs text-muted-foreground">MARK PRICE</div>
               <div className="font-mono text-foreground">
                 ${exchangeData.markPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}
@@ -61,7 +58,7 @@ export default function ExchangeBanner() {
             </div>
 
             {/* Oracle Price */}
-            <div className="flex-1">
+            <div>
               <div className="text-xs text-muted-foreground">ORACLE PRICE</div>
               <div className="space-y-0.5">
                 <div className="font-mono text-foreground text-sm">
@@ -86,7 +83,7 @@ export default function ExchangeBanner() {
             </div>
 
             {/* Mid Price */}
-            <div className="flex-1">
+            <div>
               <div className="text-xs text-muted-foreground">MID PRICE</div>
               <div className="font-mono text-foreground">
                 ${exchangeData.midPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}
@@ -94,7 +91,7 @@ export default function ExchangeBanner() {
             </div>
 
             {/* Connect Wallet Button */}
-            <div className="flex-1 flex justify-end">
+            <div>
               {authenticated ? (
                 <button 
                   onClick={disconnectWallet}
