@@ -1,6 +1,13 @@
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useUserHistoricalData, useUserPosition } from '@/hooks/useUserData';
+import { useWallet } from '@/hooks/useWallet';
+import { UserHistoricalDataItem, SpotBalance } from '@/types/api';
+import { formatDistanceToNow } from 'date-fns';
 
 interface Position {
   market: string;
@@ -36,7 +43,36 @@ const mockPositions: Position[] = [
   }
 ];
 
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'filled':
+      return 'bg-green-500';
+    case 'open':
+      return 'bg-blue-500';
+    case 'canceled':
+      return 'bg-gray-500';
+    case 'triggered':
+      return 'bg-yellow-500';
+    case 'rejected':
+      return 'bg-red-500';
+    case 'marginCanceled':
+      return 'bg-orange-500';
+    default:
+      return 'bg-gray-500';
+  }
+};
+
+const getSideColor = (side: string) => {
+  return side === 'B' ? 'text-green-500' : 'text-red-500';
+};
+
 export default function PositionsTable() {
+  const { getWalletAddress, authenticated } = useWallet();
+  const address = getWalletAddress();
+  
+  const { data: positionData, isLoading: positionsLoading, error: positionsError } = useUserPosition(address);
+  const { data: historyData, isLoading: historyLoading, error: historyError } = useUserHistoricalData(address);
+
   return (
     <Card className="bg-trading-panel border-trading-border">
       <Tabs defaultValue="positions" className="w-full">
@@ -69,79 +105,338 @@ export default function PositionsTable() {
 
         <TabsContent value="positions" className="p-0 mt-0">
           <div className="p-4">
-            {/* Headers */}
-            <div className="grid grid-cols-7 gap-4 text-xs text-muted-foreground mb-4 px-2">
-              <div>MARKET</div>
-              <div>SIDE</div>
-              <div>SIZE</div>
-              <div>ENTRY PRICE</div>
-              <div>MARK PRICE</div>
-              <div>PnL</div>
-              <div>ACTION</div>
-            </div>
-
-            {/* Positions */}
-            <div className="space-y-2">
-              {mockPositions.map((position, index) => (
-                <div
-                  key={index}
-                  className="grid grid-cols-7 gap-4 text-sm py-3 px-2 bg-secondary/50 rounded-lg hover:bg-trading-hover transition-colors"
-                >
-                  <div className="font-mono text-foreground">{position.market}</div>
-                  <div className={`font-medium ${
-                    position.side === 'LONG' ? 'text-crypto-green' : 'text-crypto-red'
-                  }`}>
-                    {position.side}
+            {!authenticated ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Please connect your wallet to view positions
+              </div>
+            ) : positionsLoading ? (
+              <div className="space-y-2">
+                <div className="grid grid-cols-5 gap-4 text-xs text-muted-foreground mb-2 px-2">
+                  <div>ASSET</div>
+                  <div className="text-right">TOTAL</div>
+                  <div className="text-right">AVAILABLE</div>
+                  <div className="text-right">ON HOLD</div>
+                  <div className="text-right">TOKEN</div>
+                </div>
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="grid grid-cols-5 gap-4 text-sm py-2 px-2">
+                    <Skeleton className="h-4 w-12" />
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-8" />
                   </div>
-                  <div className="font-mono text-foreground">{position.size}</div>
-                  <div className="font-mono text-foreground">
-                    ${position.entryPrice.toLocaleString()}
-                  </div>
-                  <div className="font-mono text-foreground">
-                    ${position.markPrice.toLocaleString()}
-                  </div>
-                  <div className={`font-mono ${
-                    position.pnl > 0 ? 'text-crypto-green' : 'text-crypto-red'
-                  }`}>
-                    ${position.pnl.toFixed(2)} ({position.pnlPercent > 0 ? '+' : ''}{position.pnlPercent}%)
+                ))}
+              </div>
+            ) : positionsError ? (
+              <Alert variant="destructive">
+                <AlertDescription>
+                  Failed to load positions: {positionsError?.message}
+                </AlertDescription>
+              </Alert>
+            ) : positionData?.success && positionData.data?.[0] ? (
+              <div className="space-y-6">
+                {/* Account Summary */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <div className="text-xs text-muted-foreground">ACCOUNT VALUE</div>
+                    <div className="font-mono text-lg font-bold text-crypto-green">
+                      ${parseFloat(positionData.data[0].clearinghouseState.marginSummary.accountValue).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </div>
                   </div>
                   <div>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      className="bg-crypto-red/20 border-crypto-red text-crypto-red hover:bg-crypto-red hover:text-white text-xs"
-                    >
-                      CLOSE
-                    </Button>
+                    <div className="text-xs text-muted-foreground">WITHDRAWABLE</div>
+                    <div className="font-mono text-lg">
+                      ${parseFloat(positionData.data[0].clearinghouseState.withdrawable).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">MARGIN USED</div>
+                    <div className="font-mono text-lg">
+                      ${parseFloat(positionData.data[0].clearinghouseState.marginSummary.totalMarginUsed).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">TOTAL POSITIONS</div>
+                    <div className="font-mono text-lg">
+                      ${parseFloat(positionData.data[0].clearinghouseState.marginSummary.totalNtlPos).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
 
-            {mockPositions.length === 0 && (
+                {/* Spot Balances Table */}
+                {positionData.data[0].spotState.balances.length > 0 && (
+                  <div>
+                    <div className="grid grid-cols-5 gap-4 text-xs text-muted-foreground mb-2 px-2 border-b border-gray-700 pb-2">
+                      <div>ASSET</div>
+                      <div className="text-right">TOTAL</div>
+                      <div className="text-right">AVAILABLE</div>
+                      <div className="text-right">ON HOLD</div>
+                      <div className="text-right">TOKEN</div>
+                    </div>
+                    <div className="space-y-1">
+                      {positionData.data[0].spotState.balances.map((balance: SpotBalance, index: number) => {
+                        const totalValue = parseFloat(balance.total);
+                        const holdValue = parseFloat(balance.hold);
+                        const availableValue = totalValue - holdValue;
+                        
+                        return (
+                          <div key={`${balance.coin}-${index}`} className="grid grid-cols-5 gap-4 text-sm py-2 px-2 hover:bg-trading-hover transition-colors">
+                            <div className="font-mono font-bold">{balance.coin}</div>
+                            <div className="font-mono text-right">${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                            <div className="font-mono text-right">${availableValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                            <div className="font-mono text-right text-orange-400">
+                              ${holdValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            </div>
+                            <div className="font-mono text-right">#{balance.token}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
               <div className="text-center py-8 text-muted-foreground">
-                No open positions
+                No positions found
               </div>
             )}
           </div>
         </TabsContent>
 
-        <TabsContent value="orders" className="p-4">
-          <div className="text-center py-8 text-muted-foreground">
-            No open orders
+        <TabsContent value="orders" className="p-0 mt-0">
+          <div className="p-4">
+            {!authenticated ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Please connect your wallet to view open orders
+              </div>
+            ) : historyLoading ? (
+              <div className="space-y-2">
+                <div className="grid grid-cols-8 gap-4 text-xs text-muted-foreground mb-2 px-2">
+                  <div>TIME</div>
+                  <div>MARKET</div>
+                  <div>SIDE</div>
+                  <div className="text-right">PRICE</div>
+                  <div className="text-right">SIZE</div>
+                  <div>STATUS</div>
+                  <div>ORDER ID</div>
+                  <div className="text-right">PnL</div>
+                </div>
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="grid grid-cols-8 gap-4 text-sm py-2 px-2">
+                    <Skeleton className="h-4 w-12" />
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-8" />
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-12" />
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-8" />
+                  </div>
+                ))}
+              </div>
+            ) : historyError ? (
+              <Alert variant="destructive">
+                <AlertDescription>
+                  Failed to load orders: {historyError?.message}
+                </AlertDescription>
+              </Alert>
+            ) : historyData?.success && historyData.data ? (
+              (() => {
+                const openOrders = historyData.data.filter(item => item.status === 'open');
+                return openOrders.length > 0 ? (
+                  <div className="max-h-96 overflow-y-auto">
+                    {/* Headers */}
+                    <div className="grid grid-cols-8 gap-4 text-xs text-muted-foreground mb-2 px-2 border-b border-gray-700 pb-2">
+                      <div>TIME</div>
+                      <div>MARKET</div>
+                      <div>SIDE</div>
+                      <div className="text-right">PRICE</div>
+                      <div className="text-right">SIZE</div>
+                      <div>STATUS</div>
+                      <div>ORDER ID</div>
+                      <div className="text-right">PnL</div>
+                    </div>
+
+                    {/* Data Rows */}
+                    <div className="space-y-1">
+                      {openOrders.map((item: UserHistoricalDataItem, index: number) => {
+                        const { order, status, statusTimestamp } = item;
+                        const time = new Date(statusTimestamp).toLocaleTimeString('en-US', { 
+                          hour: '2-digit', 
+                          minute: '2-digit',
+                          hour12: false 
+                        });
+                        
+                        return (
+                          <div key={`${order.oid}-${index}`} className="grid grid-cols-8 gap-4 text-sm py-2 px-2 hover:bg-trading-hover transition-colors">
+                            <div className="font-mono">{time}</div>
+                            <div className="font-mono">{order.coin}</div>
+                            <div className={`font-mono ${getSideColor(order.side)}`}>
+                              {order.side === 'B' ? 'BUY' : 'SELL'}
+                            </div>
+                            <div className="font-mono text-right">${parseFloat(order.limitPx).toLocaleString('en-US', { minimumFractionDigits: 1 })}</div>
+                            <div className="font-mono text-right">{order.origSz || order.sz}</div>
+                            <div className="font-mono">{status.toUpperCase()}</div>
+                            <div className="font-mono">{order.oid}</div>
+                            <div className="font-mono text-right">-</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No open orders
+                  </div>
+                );
+              })()
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No open orders
+              </div>
+            )}
           </div>
         </TabsContent>
 
-        <TabsContent value="history" className="p-4">
-          <div className="text-center py-8 text-muted-foreground">
-            No order history
+        <TabsContent value="history" className="p-0 mt-0">
+          <div className="p-4">
+            {!authenticated ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Please connect your wallet to view order history
+              </div>
+            ) : historyLoading ? (
+              <div className="space-y-2">
+                <div className="grid grid-cols-8 gap-4 text-xs text-muted-foreground mb-2 px-2">
+                  <div>TIME</div>
+                  <div>MARKET</div>
+                  <div>SIDE</div>
+                  <div className="text-right">PRICE</div>
+                  <div className="text-right">SIZE</div>
+                  <div>STATUS</div>
+                  <div>ORDER ID</div>
+                  <div className="text-right">PnL</div>
+                </div>
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="grid grid-cols-8 gap-4 text-sm py-2 px-2">
+                    <Skeleton className="h-4 w-12" />
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-8" />
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-12" />
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-8" />
+                  </div>
+                ))}
+              </div>
+            ) : historyError ? (
+              <Alert variant="destructive">
+                <AlertDescription>
+                  Failed to load order history: {historyError?.message}
+                </AlertDescription>
+              </Alert>
+            ) : historyData?.success && historyData.data?.length ? (
+              <div className="max-h-96 overflow-y-auto">
+                {/* Headers */}
+                <div className="grid grid-cols-8 gap-4 text-xs text-muted-foreground mb-2 px-2 border-b border-gray-700 pb-2">
+                  <div>TIME</div>
+                  <div>MARKET</div>
+                  <div>SIDE</div>
+                  <div className="text-right">PRICE</div>
+                  <div className="text-right">SIZE</div>
+                  <div>STATUS</div>
+                  <div>ORDER ID</div>
+                  <div className="text-right">PnL</div>
+                </div>
+
+                {/* Data Rows */}
+                <div className="space-y-1">
+                  {historyData.data.map((item: UserHistoricalDataItem, index: number) => {
+                    const { order, status, statusTimestamp } = item;
+                    const time = new Date(statusTimestamp).toLocaleTimeString('en-US', { 
+                      hour: '2-digit', 
+                      minute: '2-digit',
+                      hour12: false 
+                    });
+                    
+                    return (
+                      <div key={`${order.oid}-${index}`} className="grid grid-cols-8 gap-4 text-sm py-2 px-2 hover:bg-trading-hover transition-colors">
+                        <div className="font-mono">{time}</div>
+                        <div className="font-mono">{order.coin}</div>
+                        <div className={`font-mono ${getSideColor(order.side)}`}>
+                          {order.side === 'B' ? 'BUY' : 'SELL'}
+                        </div>
+                        <div className="font-mono text-right">${parseFloat(order.limitPx).toLocaleString('en-US', { minimumFractionDigits: 1 })}</div>
+                        <div className="font-mono text-right">{order.origSz || order.sz}</div>
+                        <div className="font-mono">{status.toUpperCase()}</div>
+                        <div className="font-mono">{order.oid}</div>
+                        <div className="font-mono text-right">-</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No order history found
+              </div>
+            )}
           </div>
         </TabsContent>
 
         <TabsContent value="debug" className="p-4">
-          <div className="text-center py-8 text-muted-foreground">
-            Debug information
-          </div>
+          {!authenticated ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Please connect your wallet to view debug information
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-secondary/30 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2">Wallet Information</h4>
+                <div className="font-mono text-sm space-y-1">
+                  <div>Address: {address}</div>
+                  <div>Connected: {authenticated ? 'Yes' : 'No'}</div>
+                </div>
+              </div>
+              
+              <div className="bg-secondary/30 p-4 rounded-lg">
+                <h4 className="font-semibold mb-2">API Status</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Positions API:</span>
+                    <span className={positionsLoading ? 'text-yellow-500' : positionsError ? 'text-red-500' : 'text-green-500'}>
+                      {positionsLoading ? 'Loading...' : positionsError ? 'Error' : 'Success'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>History API:</span>
+                    <span className={historyLoading ? 'text-yellow-500' : historyError ? 'text-red-500' : 'text-green-500'}>
+                      {historyLoading ? 'Loading...' : historyError ? 'Error' : 'Success'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {positionData && (
+                <div className="bg-secondary/30 p-4 rounded-lg">
+                  <h4 className="font-semibold mb-2">Raw Position Data</h4>
+                  <pre className="text-xs overflow-x-auto bg-black/30 p-2 rounded">
+                    {JSON.stringify(positionData, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              {historyData && (
+                <div className="bg-secondary/30 p-4 rounded-lg">
+                  <h4 className="font-semibold mb-2">Raw History Data (First 3 orders)</h4>
+                  <pre className="text-xs overflow-x-auto bg-black/30 p-2 rounded">
+                    {JSON.stringify(historyData.data?.slice(0, 3) || [], null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </Card>

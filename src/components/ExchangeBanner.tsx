@@ -1,5 +1,6 @@
 import { Card } from '@/components/ui/card';
 import { useWallet } from '@/hooks/useWallet';
+import { useUserPosition } from '@/hooks/useUserData';
 
 const exchangeData = {
   markPrice: 112900.00,
@@ -10,7 +11,9 @@ const exchangeData = {
 };
 
 export default function ExchangeBanner() {
-  const { authenticated, connectWallet, disconnectWallet, getDisplayAddress } = useWallet();
+  const { authenticated, connectWallet, disconnectWallet, getDisplayAddress, getWalletAddress } = useWallet();
+  const address = getWalletAddress();
+  const { data: positionData } = useUserPosition(address);
   
   return (
     <div className="px-4 pb-4">
@@ -20,7 +23,12 @@ export default function ExchangeBanner() {
           {/* Account info */}
           <div className="flex-1">
             <div className="text-xs text-muted-foreground">ACCOUNT VALUE</div>
-            <div className="text-lg font-mono font-bold text-foreground">$0.00</div>
+            <div className="text-lg font-mono font-bold text-foreground">
+              {authenticated && positionData?.success && positionData.data?.[0] 
+                ? `$${parseFloat(positionData.data[0].clearinghouseState.marginSummary.accountValue).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                : '$0.00'
+              }
+            </div>
             <div className="text-xs text-muted-foreground">
               {authenticated ? `Connected: ${getDisplayAddress()}` : 'Clearinghouse State'}
             </div>
