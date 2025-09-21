@@ -77,7 +77,7 @@ export default function OrderBook() {
                 {ask.size.toFixed(5)}
               </div>
               <div className="relative text-right font-mono text-muted-foreground">
-                {ask.total.toFixed(2)}
+                {ask.total.toFixed(4)}
               </div>
             </div>
           ))}
@@ -86,7 +86,7 @@ export default function OrderBook() {
         {/* Mid Price */}
         <div className="flex items-center justify-center py-2 mb-3 bg-secondary rounded">
           <span className="text-crypto-amber font-mono font-medium">
-            {midPrice.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
+            {midPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
           <span className="text-xs text-muted-foreground ml-2">MID PRICE</span>
         </div>

@@ -17,18 +17,30 @@ interface OrderBookData {
   mid_price: number;
 }
 
+interface IndividualExchange {
+  best_bid: number;
+  best_ask: number;
+  spread: number;
+  mid_price: number;
+}
+
 interface OrderBookMessage {
   type: 'aggregated_order_book';
   data: OrderBookData;
   metadata: {
     coins_processed: number;
     total_coins: number;
-    individual_exchanges: Record<string, any>;
+    individual_exchanges: Record<string, IndividualExchange>;
   };
 }
 
 interface OrderBookState {
   data: OrderBookData | null;
+  metadata: {
+    coins_processed: number;
+    total_coins: number;
+    individual_exchanges: Record<string, IndividualExchange>;
+  } | null;
   loading: boolean;
   error: string | null;
   connected: boolean;
@@ -39,6 +51,7 @@ interface OrderBookState {
 export function useOrderBook(wsUrl: string = 'ws://localhost:8000/ws/prices') {
   const [orderBook, setOrderBook] = useState<OrderBookState>({
     data: null,
+    metadata: null,
     loading: true,
     error: null,
     connected: false,
@@ -78,6 +91,7 @@ export function useOrderBook(wsUrl: string = 'ws://localhost:8000/ws/prices') {
             setOrderBook(prev => ({
               ...prev,
               data: message.data,
+              metadata: message.metadata,
               lastUpdate: Date.now(),
               loading: false,
               error: null,
