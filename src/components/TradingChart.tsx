@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickData, Time, CandlestickSeries } from 'lightweight-charts';
+import { useChartData } from '@/hooks/useChartData';
 
 interface CandleData {
   time: Time;
@@ -11,26 +12,27 @@ interface CandleData {
   close: number;
 }
 
-const mockCandleData: CandlestickData[] = [
-  { time: 1704067200 as Time, open: 113500, high: 114200, low: 113000, close: 113900 },
-  { time: 1704153600 as Time, open: 113900, high: 114500, low: 113800, close: 114100 },
-  { time: 1704240000 as Time, open: 114100, high: 114300, low: 113700, close: 113800 },
-  { time: 1704326400 as Time, open: 113800, high: 114000, low: 113500, close: 113750 },
-  { time: 1704412800 as Time, open: 113750, high: 114100, low: 113600, close: 114000 },
-  { time: 1704499200 as Time, open: 114000, high: 114800, low: 113900, close: 114600 },
-  { time: 1704585600 as Time, open: 114600, high: 115200, low: 114400, close: 114900 },
-  { time: 1704672000 as Time, open: 114900, high: 115500, low: 114700, close: 115200 },
-  { time: 1704758400 as Time, open: 115200, high: 115800, low: 115000, close: 115600 },
-  { time: 1704844800 as Time, open: 115600, high: 116000, low: 115400, close: 115800 },
-];
+// Helper function to convert API data to chart format
+const convertToChartData = (apiData: any[]): CandlestickData[] => {
+  return apiData.map(item => ({
+    time: (item.timestamp / 1000) as Time, // Convert milliseconds to seconds
+    open: item.open,
+    high: item.high,
+    low: item.low,
+    close: item.close,
+  }));
+};
 
-const timeframes = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '8h', '12h', '1d', '3d', '1w', '1M'];
+const timeframes = ['1m', '5m', '15m', '1h', '4h', '1d'];
 
 export default function TradingChart() {
   const [selectedTimeframe, setSelectedTimeframe] = useState('15m');
   const chartRef = useRef<HTMLDivElement>(null);
   const chartRef2 = useRef<IChartApi | null>(null);
   const seriesRef = useRef<any>(null);
+  
+  // Fetch real-time chart data
+  const { data: chartData, loading, error, lastUpdate, justUpdated, refetch } = useChartData('BTC', selectedTimeframe);
 
   useEffect(() => {
     if (chartRef.current && !chartRef2.current) {
@@ -68,8 +70,8 @@ export default function TradingChart() {
         wickUpColor: '#10b981',
       });
 
-      // Set the data
-      candlestickSeries.setData(mockCandleData);
+      // Set the initial data (will be updated when API data comes in)
+      candlestickSeries.setData([]);
 
       // Store references
       chartRef2.current = chart;
@@ -98,17 +100,44 @@ export default function TradingChart() {
     }
   }, []);
 
+  // Update chart data when new data comes from API
+  useEffect(() => {
+    if (seriesRef.current && chartData.length > 0) {
+      console.log('Updating chart with', chartData.length, 'data points'); // Debug log
+      const convertedData = convertToChartData(chartData);
+      seriesRef.current.setData(convertedData);
+    }
+  }, [chartData]);
+
+  // Handle timeframe changes - trigger new API call
+  const handleTimeframeChange = (timeframe: string) => {
+    console.log('Timeframe changed to:', timeframe); // Debug log
+    setSelectedTimeframe(timeframe);
+  };
+
   return (
     <Card className="bg-trading-panel border-trading-border p-0">
       {/* Chart Header */}
       <div className="flex items-center justify-between p-4 border-b border-trading-border">
         <div className="flex items-center gap-4">
-          <h3 className="text-lg font-semibold text-foreground">BTC/USDT</h3>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Range:</span>
-            <Button variant="outline" size="sm" className="h-6 px-2 text-xs">1h</Button>
-            <Button variant="outline" size="sm" className="h-6 px-2 text-xs">2h</Button>
-            <Button variant="outline" size="sm" className="h-6 px-2 text-xs">4h</Button>
+          <h3 className="text-lg font-semibold text-foreground">BTC/USD</h3>
+          
+          {/* Status indicators */}
+          <div className="flex items-center gap-2 text-sm">
+            {/* Connection status */}
+            <div className="flex items-center gap-1">
+              <div className={`w-2 h-2 rounded-full ${loading ? 'bg-yellow-500' : error ? 'bg-red-500' : 'bg-green-500'}`} />
+              <span className="text-muted-foreground">
+                {loading ? 'Loading...' : error ? 'Error' : 'Live'}
+              </span>
+            </div>
+            
+            {/* Last update */}
+            {lastUpdate && (
+              <span className={`text-xs ${justUpdated ? 'text-green-400' : 'text-muted-foreground'}`}>
+                Last: {lastUpdate.toLocaleTimeString()}
+              </span>
+            )}
           </div>
         </div>
         
@@ -124,7 +153,7 @@ export default function TradingChart() {
                   ? 'bg-crypto-green text-black font-medium' 
                   : 'text-muted-foreground hover:bg-trading-hover'
               }`}
-              onClick={() => setSelectedTimeframe(tf)}
+              onClick={() => handleTimeframeChange(tf)}
             >
               {tf}
             </Button>
@@ -133,8 +162,17 @@ export default function TradingChart() {
       </div>
 
       {/* Chart Area */}
-      <div className="h-96">
-        <div ref={chartRef} className="w-full h-full" />
+      <div className="h-96 relative">
+        {error ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-trading-panel">
+            <div className="text-center">
+              <div className="text-red-500 mb-2">⚠️ Chart Error</div>
+              <div className="text-sm text-muted-foreground">{error}</div>
+            </div>
+          </div>
+        ) : (
+          <div ref={chartRef} className="w-full h-full" />
+        )}
       </div>
     </Card>
   );
