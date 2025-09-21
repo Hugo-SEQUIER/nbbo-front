@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-
+ 
 interface ChartDataPoint {
   timestamp: number;
   open: number;
@@ -23,6 +23,7 @@ interface ChartDataState {
   lastUpdate: Date | null;
   justUpdated: boolean;
 }
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 export function useChartData(coin: string = 'BTC', timeframe: string = '15min') {
   const [chartState, setChartState] = useState<ChartDataState>({
@@ -38,7 +39,7 @@ export function useChartData(coin: string = 'BTC', timeframe: string = '15min') 
       setChartState(prev => ({ ...prev, loading: true, error: null }));
       
       // Build URL with optional timeframe parameter
-      const url = new URL(`http://0.0.0.0:8000/chart/${coin}`);
+      const url = new URL(`${API_BASE_URL}/chart/${coin}`);
       if (timeframe && timeframe !== '15min') {
         url.searchParams.append('timeframe', timeframe);
       }
