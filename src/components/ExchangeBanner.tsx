@@ -1,15 +1,16 @@
 import { Card } from '@/components/ui/card';
 import { useRedStonePrice } from '../hooks/useRedStonePrice';
+import { usePythPrice } from '../hooks/usePythPrice';
 
 const exchangeData = {
   markPrice: 112900.00,
   midPrice: 113900.00,
-  change24h: '+0.00000 / +0.00%',
-  pythPrice: 109680.00
+  change24h: '+0.00000 / +0.00%'
 };
 
 export default function ExchangeBanner() {
-  const { price: redstonePrice, loading, error, justUpdated } = useRedStonePrice(3000);
+  const { price: redstonePrice, loading: redstoneLoading, error: redstoneError, justUpdated: redstoneJustUpdated } = useRedStonePrice(10000);
+  const { price: pythPrice, loading: pythLoading, error: pythError, justUpdated: pythJustUpdated } = usePythPrice(10000);
   return (
     <div className="px-4 pb-4">
       <Card className="bg-trading-header border-trading-border">
@@ -35,16 +36,22 @@ export default function ExchangeBanner() {
             <div className="text-xs text-muted-foreground">ORACLE PRICE</div>
             <div className="space-y-0.5">
               <div className="font-mono text-foreground text-sm">
-                Redstone: ${error ? 'Error' : redstonePrice ? (
+                Redstone: ${redstoneError ? 'Error' : redstonePrice ? (
                   <span className={`transition-colors duration-300 ${
-                    justUpdated ? 'text-green-400' : 'text-foreground'
+                    redstoneJustUpdated ? 'text-green-400' : 'text-foreground'
                   }`}>
                     {redstonePrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                   </span>
                 ) : 'N/A'}
               </div>
               <div className="font-mono text-foreground text-sm">
-                Pyth: ${exchangeData.pythPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                Pyth: ${pythError ? 'Error' : pythPrice ? (
+                  <span className={`transition-colors duration-300 ${
+                    pythJustUpdated ? 'text-green-400' : 'text-foreground'
+                  }`}>
+                    {pythPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </span>
+                ) : 'N/A'}
               </div>
             </div>
           </div>
