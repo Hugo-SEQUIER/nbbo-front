@@ -4,8 +4,7 @@ import { usePythPrice } from '../hooks/usePythPrice';
 
 const exchangeData = {
   markPrice: 112900.00,
-  midPrice: 113900.00,
-  change24h: '+0.00000 / +0.00%'
+  midPrice: 113900.00
 };
 
 export default function ExchangeBanner() {
