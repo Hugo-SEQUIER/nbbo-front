@@ -3,6 +3,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { useUserPosition } from '@/hooks/useUserData';
 import { useRedStonePrice } from '../hooks/useRedStonePrice';
 import { usePythPrice } from '../hooks/usePythPrice';
+import { useOrderBook } from '../hooks/useOrderBook';
 
 const exchangeData = {
   markPrice: 112900.00,
@@ -15,6 +16,7 @@ export default function ExchangeBanner() {
   const { data: positionData } = useUserPosition(address);
   const { price: redstonePrice, loading: redstoneLoading, error: redstoneError, justUpdated: redstoneJustUpdated } = useRedStonePrice(10000);
   const { price: pythPrice, loading: pythLoading, error: pythError, justUpdated: pythJustUpdated } = usePythPrice(10000);
+  const { data: orderBookData } = useOrderBook();
 
   return (
     <div className="px-4 pb-4">
@@ -43,9 +45,13 @@ export default function ExchangeBanner() {
               </div>
               <div className="border-b border-border mb-1"></div>
               <div className="flex justify-between items-center font-mono text-foreground">
-                <span>$115,420.50</span>
+                <span className="text-crypto-green">
+                  ${orderBookData?.best_bid ? orderBookData.best_bid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}
+                </span>
                 <span className="w-px h-4 bg-border mx-2"></span>
-                <span>$115,450.75</span>
+                <span className="text-crypto-red">
+                  ${orderBookData?.best_ask ? orderBookData.best_ask.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}
+                </span>
               </div>
             </div>
 
@@ -53,7 +59,7 @@ export default function ExchangeBanner() {
             <div>
               <div className="text-xs text-muted-foreground">MARK PRICE</div>
               <div className="font-mono text-foreground">
-                ${exchangeData.markPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                ${exchangeData.markPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </div>
 
@@ -66,7 +72,7 @@ export default function ExchangeBanner() {
                     <span className={`transition-colors duration-300 ${
                       redstoneJustUpdated ? 'text-green-400' : 'text-foreground'
                     }`}>
-                      {redstonePrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      {redstonePrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   ) : 'N/A'}
                 </div>
@@ -75,7 +81,7 @@ export default function ExchangeBanner() {
                     <span className={`transition-colors duration-300 ${
                       pythJustUpdated ? 'text-green-400' : 'text-foreground'
                     }`}>
-                      {pythPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      {pythPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   ) : 'N/A'}
                 </div>
@@ -86,7 +92,7 @@ export default function ExchangeBanner() {
             <div>
               <div className="text-xs text-muted-foreground">MID PRICE</div>
               <div className="font-mono text-foreground">
-                ${exchangeData.midPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                ${orderBookData?.mid_price ? orderBookData.mid_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}
               </div>
             </div>
 
