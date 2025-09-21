@@ -28,7 +28,7 @@ export default function OrderBook() {
   return (
     <Card className="bg-trading-panel border-trading-border">
       <div className="p-4">
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4">
           <h3 className="text-sm font-medium text-foreground">ORDERBOOK</h3>
           <div className="text-xs text-muted-foreground">LAST UPDATED: 4:05:02 PM</div>
         </div>
