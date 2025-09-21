@@ -11,11 +11,9 @@ interface ExchangePrice {
 }
 
 const exchangePrices: ExchangePrice[] = [
-  { exchange: 'Binance', symbol: 'BTC/USDC', price: 112900.00, change24h: -0.03, isPositive: false },
-  { exchange: 'Coinbase', symbol: 'BTC/USDC', price: 112850.00, change24h: -0.08, isPositive: false },
-  { exchange: 'Kraken', symbol: 'BTC/USDC', price: 112920.00, change24h: +0.02, isPositive: true },
-  { exchange: 'Uniswap', symbol: 'BTC/USDC', price: 112880.00, change24h: -0.05, isPositive: false },
-  { exchange: 'dYdX', symbol: 'BTC/USDC', price: 112910.00, change24h: +0.01, isPositive: true },
+  { exchange: 'merrli', symbol: 'BTC/USDC', price: 112900.00, change24h: -0.03, isPositive: false },
+  { exchange: 'sekaw', symbol: 'BTC/USDC', price: 112850.00, change24h: -0.08, isPositive: false },
+  { exchange: 'btcx', symbol: 'BTC/USDC', price: 112920.00, change24h: +0.02, isPositive: true }
 ];
 
 export default function ExchangeSelector() {
