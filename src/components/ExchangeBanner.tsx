@@ -1,14 +1,15 @@
 import { Card } from '@/components/ui/card';
+import { useRedStonePrice } from '../hooks/useRedStonePrice';
 
 const exchangeData = {
   markPrice: 112900.00,
   midPrice: 113900.00,
   change24h: '+0.00000 / +0.00%',
-  redstonePrice: 109642.00,
   pythPrice: 109680.00
 };
 
 export default function ExchangeBanner() {
+  const { price: redstonePrice, loading, error, justUpdated } = useRedStonePrice(3000);
   return (
     <div className="px-4 pb-4">
       <Card className="bg-trading-header border-trading-border">
@@ -34,7 +35,13 @@ export default function ExchangeBanner() {
             <div className="text-xs text-muted-foreground">ORACLE PRICE</div>
             <div className="space-y-0.5">
               <div className="font-mono text-foreground text-sm">
-                Redstone: ${exchangeData.redstonePrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                Redstone: ${error ? 'Error' : redstonePrice ? (
+                  <span className={`transition-colors duration-300 ${
+                    justUpdated ? 'text-green-400' : 'text-foreground'
+                  }`}>
+                    {redstonePrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </span>
+                ) : 'N/A'}
               </div>
               <div className="font-mono text-foreground text-sm">
                 Pyth: ${exchangeData.pythPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}
