@@ -1,7 +1,8 @@
 import { UserHistoricalData, UserPosition } from '@/types/api';
 
 // Replace with your actual backend URL
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+// Use localhost instead of 0.0.0.0 to avoid browser blocking
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8060';
 
 class ApiService {
     private async makeRequest<T>(endpoint: string, params?: Record<string, string>): Promise<T> {

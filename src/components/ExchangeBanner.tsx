@@ -11,7 +11,16 @@ const exchangeData = {
 };
 
 export default function ExchangeBanner() {
-  const { authenticated, connectWallet, disconnectWallet, getDisplayAddress, getWalletAddress } = useWallet();
+  const { 
+    authenticated, 
+    connectWallet, 
+    disconnectWallet, 
+    getDisplayAddress, 
+    getWalletAddress,
+    setupHyperliquidApiWallet,
+    isTradingEnabled,
+    isSettingUpApiWallet
+  } = useWallet();
   const address = getWalletAddress();
   const { data: positionData } = useUserPosition(address);
   const { price: redstonePrice, loading: redstoneLoading, error: redstoneError, justUpdated: redstoneJustUpdated } = useRedStonePrice(10000);
@@ -96,15 +105,34 @@ export default function ExchangeBanner() {
               </div>
             </div>
 
-            {/* Connect Wallet Button */}
-            <div>
+            {/* Connect Wallet & Trading Buttons */}
+            <div className="flex gap-2">
               {authenticated ? (
-                <button 
-                  onClick={disconnectWallet}
-                  className="px-4 py-2 bg-red-600 text-white font-medium text-sm rounded hover:bg-red-700 transition-colors"
-                >
-                  DISCONNECT
-                </button>
+                <>
+                  {/* Enable Trading Button - only show when wallet is connected */}
+                  {!isTradingEnabled() ? (
+                    <button 
+                      onClick={setupHyperliquidApiWallet}
+                      disabled={isSettingUpApiWallet}
+                      className="px-4 py-2 bg-blue-600 text-white font-medium text-sm rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSettingUpApiWallet ? 'SETTING UP...' : 'ENABLE TRADING'}
+                    </button>
+                  ) : (
+                    <div className="px-4 py-2 bg-green-600 text-white font-medium text-sm rounded flex items-center gap-2">
+                      <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                      TRADING ENABLED
+                    </div>
+                  )}
+                  
+                  {/* Disconnect Button */}
+                  <button 
+                    onClick={disconnectWallet}
+                    className="px-4 py-2 bg-red-600 text-white font-medium text-sm rounded hover:bg-red-700 transition-colors"
+                  >
+                    DISCONNECT
+                  </button>
+                </>
               ) : (
                 <button 
                   onClick={connectWallet}

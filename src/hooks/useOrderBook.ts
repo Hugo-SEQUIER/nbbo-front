@@ -48,7 +48,7 @@ interface OrderBookState {
   justUpdated: boolean;
 }
 
-export function useOrderBook(wsUrl: string = 'ws://localhost:8000/ws/prices') {
+export function useOrderBook(wsUrl: string = 'ws://localhost:8060/ws/prices') {
   const [orderBook, setOrderBook] = useState<OrderBookState>({
     data: null,
     metadata: null,
