@@ -1,6 +1,6 @@
 import { Card } from '@/components/ui/card';
 import { useWallet } from '@/hooks/useWallet';
-import { useUserPosition } from '@/hooks/useUserData';
+import { useUserPosition, useUserBalance } from '@/hooks/useUserData';
 import { useRedStonePrice } from '../hooks/useRedStonePrice';
 import { usePythPrice } from '../hooks/usePythPrice';
 import { useOrderBook } from '../hooks/useOrderBook';
@@ -23,6 +23,7 @@ export default function ExchangeBanner() {
   } = useWallet();
   const address = getWalletAddress();
   const { data: positionData } = useUserPosition(address);
+  const { data: balanceData } = useUserBalance(address);
   const { price: redstonePrice, loading: redstoneLoading, error: redstoneError, justUpdated: redstoneJustUpdated } = useRedStonePrice(10000);
   const { price: pythPrice, loading: pythLoading, error: pythError, justUpdated: pythJustUpdated } = usePythPrice(10000);
   const { data: orderBookData } = useOrderBook();
@@ -34,15 +35,15 @@ export default function ExchangeBanner() {
           <div className="flex items-center justify-between w-full">
             {/* Account info */}
             <div>
-              <div className="text-xs text-muted-foreground">ACCOUNT VALUE</div>
+              <div className="text-xs text-muted-foreground">TOTAL ACCOUNT VALUE</div>
               <div className="text-lg font-mono font-bold text-foreground">
-                {authenticated && positionData?.success && positionData.data?.[0] 
-                  ? `$${parseFloat(positionData.data[0].clearinghouseState.marginSummary.accountValue).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                {authenticated && balanceData?.success && balanceData.data?.total_account_value
+                  ? `$${balanceData.data.total_account_value.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
                   : '$0.00'
                 }
               </div>
               <div className="text-xs text-muted-foreground">
-                {authenticated ? `Connected: ${getDisplayAddress()}` : 'Clearinghouse State'}
+                {authenticated ? `Connected: ${getDisplayAddress()}` : 'Cross-Exchange Balance'}
               </div>
             </div>
 

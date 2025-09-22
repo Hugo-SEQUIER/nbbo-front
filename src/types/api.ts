@@ -70,3 +70,50 @@ export interface UserPosition {
     success: boolean;
     data: UserPositionItem[] | null;
 }
+
+// Types for user balance endpoint
+export interface Leverage {
+    type: "isolated" | "cross";
+    value: number;
+    rawUsd: string;
+}
+
+export interface CumFunding {
+    allTime: string;
+    sinceOpen: string;
+    sinceChange: string;
+}
+
+export interface AssetPosition {
+    type: "oneWay";
+    position: {
+        coin: string;
+        szi: string;
+        leverage: Leverage;
+        entryPx: string;
+        positionValue: string;
+        unrealizedPnl: string;
+        returnOnEquity: string;
+        liquidationPx: string;
+        marginUsed: string;
+        maxLeverage: number;
+        cumFunding: CumFunding;
+    };
+}
+
+export interface ExchangeBalance {
+    marginSummary: MarginSummary;
+    crossMarginSummary: MarginSummary;
+    crossMaintenanceMarginUsed: string;
+    withdrawable: string;
+    assetPositions: AssetPosition[];
+    time: number;
+}
+
+export interface UserBalance {
+    success: boolean;
+    data: {
+        [exchangeName: string]: ExchangeBalance;
+        total_account_value: number;
+    };
+}

@@ -4,9 +4,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useUserHistoricalData, useUserPosition } from '@/hooks/useUserData';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useUserHistoricalData, useUserPosition, useUserBalance } from '@/hooks/useUserData';
 import { useWallet } from '@/hooks/useWallet';
-import { UserHistoricalDataItem, SpotBalance } from '@/types/api';
+import { UserHistoricalDataItem, SpotBalance, AssetPosition } from '@/types/api';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Position {
@@ -71,6 +72,7 @@ export default function PositionsTable() {
   const address = getWalletAddress();
   
   const { data: positionData, isLoading: positionsLoading, error: positionsError } = useUserPosition(address);
+  const { data: balanceData, isLoading: balanceLoading, error: balanceError } = useUserBalance(address);
   const { data: historyData, isLoading: historyLoading, error: historyError } = useUserHistoricalData(address);
 
   return (
@@ -104,104 +106,169 @@ export default function PositionsTable() {
         </TabsList>
 
         <TabsContent value="positions" className="p-0 mt-0">
-          <div className="p-4">
-            {!authenticated ? (
-              <div className="text-center py-8 text-muted-foreground">
-                Please connect your wallet to view positions
-              </div>
-            ) : positionsLoading ? (
-              <div className="space-y-2">
-                <div className="grid grid-cols-5 gap-4 text-xs text-muted-foreground mb-2 px-2">
-                  <div>ASSET</div>
-                  <div className="text-right">TOTAL</div>
-                  <div className="text-right">AVAILABLE</div>
-                  <div className="text-right">ON HOLD</div>
-                  <div className="text-right">TOKEN</div>
+          <TooltipProvider>
+            <div className="p-4">
+              {!authenticated ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Please connect your wallet to view positions
                 </div>
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="grid grid-cols-5 gap-4 text-sm py-2 px-2">
-                    <Skeleton className="h-4 w-12" />
-                    <Skeleton className="h-4 w-16" />
-                    <Skeleton className="h-4 w-16" />
-                    <Skeleton className="h-4 w-16" />
-                    <Skeleton className="h-4 w-8" />
+              ) : balanceLoading ? (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-7 gap-4 text-xs text-muted-foreground mb-2 px-2">
+                    <div>EXCHANGE</div>
+                    <div>MARKET</div>
+                    <div className="text-right">SIZE</div>
+                    <div className="text-right">ENTRY PRICE</div>
+                    <div className="text-right">POSITION VALUE</div>
+                    <div className="text-right">UNREALIZED PNL</div>
+                    <div className="text-right">TOTAL RAW USD</div>
                   </div>
-                ))}
-              </div>
-            ) : positionsError ? (
-              <Alert variant="destructive">
-                <AlertDescription>
-                  Failed to load positions: {positionsError?.message}
-                </AlertDescription>
-              </Alert>
-            ) : positionData?.success && positionData.data?.[0] ? (
-              <div className="space-y-6">
-                {/* Account Summary */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <div className="text-xs text-muted-foreground">ACCOUNT VALUE</div>
-                    <div className="font-mono text-lg font-bold text-crypto-green">
-                      ${parseFloat(positionData.data[0].clearinghouseState.marginSummary.accountValue).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="grid grid-cols-7 gap-4 text-sm py-2 px-2">
+                      <Skeleton className="h-4 w-12" />
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-4 w-16" />
+                      <Skeleton className="h-4 w-16" />
+                      <Skeleton className="h-4 w-16" />
+                      <Skeleton className="h-4 w-16" />
+                      <Skeleton className="h-4 w-16" />
                     </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">WITHDRAWABLE</div>
-                    <div className="font-mono text-lg">
-                      ${parseFloat(positionData.data[0].clearinghouseState.withdrawable).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">MARGIN USED</div>
-                    <div className="font-mono text-lg">
-                      ${parseFloat(positionData.data[0].clearinghouseState.marginSummary.totalMarginUsed).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-muted-foreground">TOTAL POSITIONS</div>
-                    <div className="font-mono text-lg">
-                      ${parseFloat(positionData.data[0].clearinghouseState.marginSummary.totalNtlPos).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                    </div>
-                  </div>
+                  ))}
                 </div>
+              ) : balanceError ? (
+                <Alert variant="destructive">
+                  <AlertDescription>
+                    Failed to load balance data: {balanceError?.message}
+                  </AlertDescription>
+                </Alert>
+              ) : balanceData?.success && balanceData.data ? (
+                <div className="space-y-6">
+                  {/* Account Summary */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <div className="text-xs text-muted-foreground">TOTAL ACCOUNT VALUE</div>
+                      <div className="font-mono text-lg font-bold text-crypto-green">
+                        ${balanceData.data.total_account_value.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">TOTAL WITHDRAWABLE</div>
+                      <div className="font-mono text-lg">
+                        ${Object.entries(balanceData.data)
+                          .filter(([key, value]) => key !== 'total_account_value' && typeof value === 'object' && value && 'withdrawable' in value)
+                          .reduce((sum, [, exchange]) => {
+                            const exchangeData = exchange as any;
+                            return sum + parseFloat(exchangeData.withdrawable || '0');
+                          }, 0)
+                          .toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">TOTAL MARGIN USED</div>
+                      <div className="font-mono text-lg">
+                        ${Object.entries(balanceData.data)
+                          .filter(([key, value]) => key !== 'total_account_value' && typeof value === 'object' && value && 'marginSummary' in value)
+                          .reduce((sum, [, exchange]) => {
+                            const exchangeData = exchange as any;
+                            return sum + parseFloat(exchangeData.marginSummary?.totalMarginUsed || '0');
+                          }, 0)
+                          .toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">TOTAL RAW USD</div>
+                      <div className="font-mono text-lg">
+                        ${Object.entries(balanceData.data)
+                          .filter(([key, value]) => key !== 'total_account_value' && typeof value === 'object' && value && 'marginSummary' in value)
+                          .reduce((sum, [, exchange]) => {
+                            const exchangeData = exchange as any;
+                            return sum + parseFloat(exchangeData.marginSummary?.totalRawUsd || '0');
+                          }, 0)
+                          .toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  </div>
 
-                {/* Spot Balances Table */}
-                {positionData.data[0].spotState.balances.length > 0 && (
-                  <div>
-                    <div className="grid grid-cols-5 gap-4 text-xs text-muted-foreground mb-2 px-2 border-b border-gray-700 pb-2">
-                      <div>ASSET</div>
-                      <div className="text-right">TOTAL</div>
-                      <div className="text-right">AVAILABLE</div>
-                      <div className="text-right">ON HOLD</div>
-                      <div className="text-right">TOKEN</div>
-                    </div>
-                    <div className="space-y-1">
-                      {positionData.data[0].spotState.balances.map((balance: SpotBalance, index: number) => {
-                        const totalValue = parseFloat(balance.total);
-                        const holdValue = parseFloat(balance.hold);
-                        const availableValue = totalValue - holdValue;
-                        
-                        return (
-                          <div key={`${balance.coin}-${index}`} className="grid grid-cols-5 gap-4 text-sm py-2 px-2 hover:bg-trading-hover transition-colors">
-                            <div className="font-mono font-bold">{balance.coin}</div>
-                            <div className="font-mono text-right">${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-                            <div className="font-mono text-right">${availableValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-                            <div className="font-mono text-right text-orange-400">
-                              ${holdValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                            </div>
-                            <div className="font-mono text-right">#{balance.token}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                No positions found
-              </div>
-            )}
-          </div>
+                  {/* Asset Positions Table */}
+                  {(() => {
+                    const allPositions: Array<{exchange: string, position: AssetPosition, exchangeData: any}> = [];
+                    Object.entries(balanceData.data).forEach(([exchangeName, exchangeData]) => {
+                      if (typeof exchangeData === 'object' && exchangeData && 'assetPositions' in exchangeData) {
+                        exchangeData.assetPositions.forEach((position: AssetPosition) => {
+                          allPositions.push({
+                            exchange: exchangeName,
+                            position,
+                            exchangeData
+                          });
+                        });
+                      }
+                    });
+
+                    return allPositions.length > 0 ? (
+                      <div>
+                        <div className="grid grid-cols-7 gap-4 text-xs text-muted-foreground mb-2 px-2 border-b border-gray-700 pb-2">
+                          <div>EXCHANGE</div>
+                          <div>MARKET</div>
+                          <div className="text-right">SIZE</div>
+                          <div className="text-right">ENTRY PRICE</div>
+                          <div className="text-right">POSITION VALUE</div>
+                          <div className="text-right">UNREALIZED PNL</div>
+                          <div className="text-right">TOTAL RAW USD</div>
+                        </div>
+                        <div className="space-y-1">
+                          {allPositions.map(({exchange, position, exchangeData}, index: number) => {
+                            const positionValue = parseFloat(position.position.positionValue);
+                            const unrealizedPnl = parseFloat(position.position.unrealizedPnl);
+                            const totalRawUsd = parseFloat(exchangeData.marginSummary?.totalRawUsd || '0');
+                            const withdrawable = parseFloat(exchangeData.withdrawable || '0');
+                            const size = parseFloat(position.position.szi);
+                            const entryPrice = parseFloat(position.position.entryPx);
+                            
+                            return (
+                              <div key={`${exchange}-${position.position.coin}-${index}`} className="grid grid-cols-7 gap-4 text-sm py-2 px-2 hover:bg-trading-hover transition-colors">
+                                <div className="font-mono font-bold uppercase">{exchange}</div>
+                                <div className="font-mono">{position.position.coin}</div>
+                                <div className={`font-mono text-right ${size >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                  {Math.abs(size).toFixed(4)}
+                                </div>
+                                <div className="font-mono text-right">
+                                  ${entryPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                </div>
+                                <div className="font-mono text-right">
+                                  ${positionValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                </div>
+                                <div className={`font-mono text-right ${unrealizedPnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                  ${unrealizedPnl.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                </div>
+                                <div className="font-mono text-right">
+                                  <Tooltip>
+                                    <TooltipTrigger className="cursor-help underline decoration-dotted">
+                                      ${totalRawUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Withdrawable: ${withdrawable.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        No positions found
+                      </div>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No balance data available
+                </div>
+              )}
+            </div>
+          </TooltipProvider>
         </TabsContent>
 
         <TabsContent value="orders" className="p-0 mt-0">
