@@ -256,10 +256,16 @@ export default function PositionsTable() {
                             const size = parseFloat(position.position.szi);
                             const entryPrice = parseFloat(position.position.entryPx);
                             
+                            // Split coin field into market and coin
+                            const coinField = position.position.coin || '';
+                            const coinParts = coinField.split(':');
+                            const market = coinParts.length > 1 ? coinParts[0] : exchange; // Use exchange as fallback
+                            const coin = coinParts.length > 1 ? coinParts[1] : coinField; // Use full field as fallback
+                            
                             return (
                               <div key={`${exchange}-${position.position.coin}-${index}`} className="grid grid-cols-7 gap-4 text-sm py-2 px-2 hover:bg-trading-hover transition-colors">
-                                <div className="font-mono font-bold uppercase">{exchange}</div>
-                                <div className="font-mono">{position.position.coin}</div>
+                                <div className="font-mono font-bold uppercase">{market}</div>
+                                <div className="font-mono">{coin}</div>
                                 <div className={`font-mono text-right ${size >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                   {Math.abs(size).toFixed(4)}
                                 </div>
@@ -370,11 +376,17 @@ export default function PositionsTable() {
                           hour12: false 
                         });
                         
+                        // Split coin field into market and coin
+                        const coinField = order.coin || '';
+                        const coinParts = coinField.split(':');
+                        const market = coinParts.length > 1 ? coinParts[0] : 'UNKNOWN'; // Use UNKNOWN as fallback
+                        const coin = coinParts.length > 1 ? coinParts[1] : coinField; // Use full field as fallback
+                        
                         return (
                           <div key={`${order.oid}-${index}`} className="grid grid-cols-8 gap-2 text-sm py-2 px-2 hover:bg-trading-hover transition-colors">
                             <div className="font-mono text-xs w-20">{time}</div>
-                            <div className="font-mono">{order.coin}</div>
-                            <div className="font-mono">{order.coin}</div>
+                            <div className="font-mono">{market}</div>
+                            <div className="font-mono">{coin}</div>
                             <div className={`font-mono text-xs w-12 ${getSideColor(order.side)}`}>
                               {order.side === 'B' ? 'BUY' : 'SELL'}
                             </div>
@@ -465,11 +477,17 @@ export default function PositionsTable() {
                       hour12: false 
                     });
                     
+                    // Split coin field into market and coin
+                    const coinField = order.coin || '';
+                    const coinParts = coinField.split(':');
+                    const market = coinParts.length > 1 ? coinParts[0] : 'UNKNOWN'; // Use UNKNOWN as fallback
+                    const coin = coinParts.length > 1 ? coinParts[1] : coinField; // Use full field as fallback
+                    
                     return (
                       <div key={`${order.oid}-${index}`} className="grid grid-cols-8 gap-2 text-sm py-2 px-2 hover:bg-trading-hover transition-colors">
                         <div className="font-mono text-xs w-20">{time}</div>
-                        <div className="font-mono">{order.coin}</div>
-                        <div className="font-mono">{order.coin}</div>
+                        <div className="font-mono">{market}</div>
+                        <div className="font-mono">{coin}</div>
                         <div className={`font-mono text-xs w-12 ${getSideColor(order.side)}`}>
                           {order.side === 'B' ? 'BUY' : 'SELL'}
                         </div>
