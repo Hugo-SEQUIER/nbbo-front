@@ -68,7 +68,7 @@ export default function TradingPanel() {
   };
 
   return (
-    <Card className="bg-trading-panel border-trading-border">
+    <Card className="bg-trading-panel border-trading-border max-h-[80vh] overflow-y-auto">
       <div className="p-4 space-y-4">
         {/* Status et alertes */}
         {!authenticated && (

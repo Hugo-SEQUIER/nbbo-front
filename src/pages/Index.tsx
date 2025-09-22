@@ -4,14 +4,13 @@ import TradingChart from '@/components/TradingChart';
 import OrderBook from '@/components/OrderBook';
 import TradingPanel from '@/components/TradingPanel';
 import PositionsTable from '@/components/PositionsTable';
+import TopBanner from '@/components/TopBanner';
 
 const Index = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Exchange Selector */}
+      <TopBanner />
       <ExchangeSelector />
-      
-      {/* Top Banner */}
       <ExchangeBanner />
 
       {/* Main Trading Interface */}

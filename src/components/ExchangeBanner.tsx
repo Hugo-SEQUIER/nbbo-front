@@ -3,7 +3,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { useUserPosition, useUserBalance } from '@/hooks/useUserData';
 import { useRedStonePrice } from '../hooks/useRedStonePrice';
 import { usePythPrice } from '../hooks/usePythPrice';
-import { useOrderBook } from '../hooks/useOrderBook';
+import { useOrderBookContext } from '@/contexts/OrderBookContext';
 
 const exchangeData = {
   markPrice: 112900.00,
@@ -26,7 +26,7 @@ export default function ExchangeBanner() {
   const { data: balanceData } = useUserBalance(address);
   const { price: redstonePrice, loading: redstoneLoading, error: redstoneError, justUpdated: redstoneJustUpdated } = useRedStonePrice(10000);
   const { price: pythPrice, loading: pythLoading, error: pythError, justUpdated: pythJustUpdated } = usePythPrice(10000);
-  const { data: orderBookData } = useOrderBook();
+  const { data: orderBookData } = useOrderBookContext();
 
   return (
     <div className="px-4 pb-4">
@@ -62,14 +62,6 @@ export default function ExchangeBanner() {
                 <span className="text-crypto-red">
                   ${orderBookData?.best_ask ? orderBookData.best_ask.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}
                 </span>
-              </div>
-            </div>
-
-            {/* Mark Price */}
-            <div>
-              <div className="text-xs text-muted-foreground">MARK PRICE</div>
-              <div className="font-mono text-foreground">
-                ${exchangeData.markPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </div>
 

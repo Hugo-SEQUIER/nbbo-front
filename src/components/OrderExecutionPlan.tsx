@@ -35,7 +35,7 @@ export function OrderExecutionPlanComponent({ plan, isLoading }: OrderExecutionP
     }
 
     return (
-        <Card className="bg-trading-panel border-trading-border">
+        <Card className="bg-trading-panel border-trading-border ">
             <div className="p-4 space-y-4">
                 <div className="flex items-center justify-between">
                     <h3 className="text-sm font-medium text-foreground">EXECUTION PLAN</h3>

@@ -1,5 +1,5 @@
 import { Card } from '@/components/ui/card';
-import { useOrderBook } from '../hooks/useOrderBook';
+import { useOrderBookContext } from '@/contexts/OrderBookContext';
 
 interface OrderBookEntry {
   price: number;
@@ -8,7 +8,7 @@ interface OrderBookEntry {
 }
 
 export default function OrderBook() {
-  const { data: orderBookData, loading, error, connected, justUpdated } = useOrderBook();
+  const { data: orderBookData, loading, error, connected, justUpdated } = useOrderBookContext();
 
   // Transform the WebSocket data to match our component's expected format
   const bids: OrderBookEntry[] = orderBookData?.bids?.slice(0, 6).map((bid, index, array) => {
