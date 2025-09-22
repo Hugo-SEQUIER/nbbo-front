@@ -1,5 +1,5 @@
 import { Card } from '@/components/ui/card';
-import { useOrderBook } from '../hooks/useOrderBook';
+import { useOrderBookContext } from '@/contexts/OrderBookContext';
 
 interface ExchangeData {
   exchange: string;
@@ -10,7 +10,7 @@ interface ExchangeData {
 }
 
 export default function ExchangeSelector() {
-  const { data: orderBookData, metadata } = useOrderBook();
+  const { data: orderBookData, metadata } = useOrderBookContext();
 
   // Transform individual exchange data from WebSocket
   const exchangeData: ExchangeData[] = metadata?.individual_exchanges 

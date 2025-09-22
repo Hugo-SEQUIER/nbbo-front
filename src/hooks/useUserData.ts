@@ -32,7 +32,7 @@ export const useUserPosition = (
             return apiService.getUserPosition(address);
         },
         enabled: !!address,
-        refetchInterval: 5000, // Refetch every 5 seconds for positions
+        refetchInterval: 10000, // Refetch every 5 seconds for positions
         staleTime: 2000, // Consider data stale after 2 seconds
     });
 };
