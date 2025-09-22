@@ -162,7 +162,7 @@ export default function TradingChart() {
       </div>
 
       {/* Chart Area */}
-      <div className="h-96 relative">
+      <div className="h-[435px] relative">
         {error ? (
           <div className="absolute inset-0 flex items-center justify-center bg-trading-panel">
             <div className="text-center">
