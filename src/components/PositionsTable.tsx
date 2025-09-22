@@ -10,39 +10,6 @@ import { useWallet } from '@/hooks/useWallet';
 import { UserHistoricalDataItem, SpotBalance, AssetPosition } from '@/types/api';
 import { formatDistanceToNow } from 'date-fns';
 
-interface Position {
-  market: string;
-  side: 'LONG' | 'SHORT';
-  size: number;
-  entryPrice: number;
-  markPrice: number;
-  pnl: number;
-  pnlPercent: number;
-  status: string;
-}
-
-const mockPositions: Position[] = [
-  {
-    market: 'BTC-PERP',
-    side: 'LONG',
-    size: 0.5,
-    entryPrice: 112000,
-    markPrice: 113900,
-    pnl: 950,
-    pnlPercent: 1.7,
-    status: 'OPEN'
-  },
-  {
-    market: 'ETH-PERP',
-    side: 'SHORT',
-    size: 2.1,
-    entryPrice: 3200,
-    markPrice: 3150,
-    pnl: 105,
-    pnlPercent: 1.56,
-    status: 'OPEN'
-  }
-];
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -279,18 +246,18 @@ export default function PositionsTable() {
               </div>
             ) : historyLoading ? (
               <div className="space-y-2">
-                <div className="grid grid-cols-8 gap-4 text-xs text-muted-foreground mb-2 px-2">
-                  <div>TIME</div>
+                <div className="grid grid-cols-8 gap-2 text-xs text-muted-foreground mb-2 px-2">
+                  <div className="w-20">TIME</div>
                   <div>MARKET</div>
-                  <div>SIDE</div>
+                  <div>COIN</div>
+                  <div className="w-12">SIDE</div>
                   <div className="text-right">PRICE</div>
                   <div className="text-right">SIZE</div>
                   <div>STATUS</div>
                   <div>ORDER ID</div>
-                  <div className="text-right">PnL</div>
                 </div>
                 {[...Array(3)].map((_, i) => (
-                  <div key={i} className="grid grid-cols-8 gap-4 text-sm py-2 px-2">
+                  <div key={i} className="grid grid-cols-8 gap-2 text-sm py-2 px-2">
                     <Skeleton className="h-4 w-12" />
                     <Skeleton className="h-4 w-20" />
                     <Skeleton className="h-4 w-8" />
@@ -314,15 +281,15 @@ export default function PositionsTable() {
                 return openOrders.length > 0 ? (
                   <div className="max-h-96 overflow-y-auto">
                     {/* Headers */}
-                    <div className="grid grid-cols-8 gap-4 text-xs text-muted-foreground mb-2 px-2 border-b border-gray-700 pb-2">
-                      <div>TIME</div>
+                    <div className="grid grid-cols-8 gap-2 text-xs text-muted-foreground mb-2 px-2 border-b border-gray-700 pb-2">
+                      <div className="w-20">TIME</div>
                       <div>MARKET</div>
-                      <div>SIDE</div>
+                      <div>COIN</div>
+                      <div className="w-12">SIDE</div>
                       <div className="text-right">PRICE</div>
                       <div className="text-right">SIZE</div>
                       <div>STATUS</div>
                       <div>ORDER ID</div>
-                      <div className="text-right">PnL</div>
                     </div>
 
                     {/* Data Rows */}
@@ -339,17 +306,17 @@ export default function PositionsTable() {
                         });
                         
                         return (
-                          <div key={`${order.oid}-${index}`} className="grid grid-cols-8 gap-4 text-sm py-2 px-2 hover:bg-trading-hover transition-colors">
-                            <div className="font-mono">{time}</div>
+                          <div key={`${order.oid}-${index}`} className="grid grid-cols-8 gap-2 text-sm py-2 px-2 hover:bg-trading-hover transition-colors">
+                            <div className="font-mono text-xs w-20">{time}</div>
                             <div className="font-mono">{order.coin}</div>
-                            <div className={`font-mono ${getSideColor(order.side)}`}>
+                            <div className="font-mono">{order.coin}</div>
+                            <div className={`font-mono text-xs w-12 ${getSideColor(order.side)}`}>
                               {order.side === 'B' ? 'BUY' : 'SELL'}
                             </div>
                             <div className="font-mono text-right">${parseFloat(order.limitPx).toLocaleString('en-US', { minimumFractionDigits: 1 })}</div>
                             <div className="font-mono text-right">{order.origSz || order.sz}</div>
                             <div className="font-mono">{status.toUpperCase()}</div>
                             <div className="font-mono">{order.oid}</div>
-                            <div className="font-mono text-right">-</div>
                           </div>
                         );
                       })}
@@ -377,18 +344,18 @@ export default function PositionsTable() {
               </div>
             ) : historyLoading ? (
               <div className="space-y-2">
-                <div className="grid grid-cols-8 gap-4 text-xs text-muted-foreground mb-2 px-2">
-                  <div>TIME</div>
+                <div className="grid grid-cols-8 gap-2 text-xs text-muted-foreground mb-2 px-2">
+                  <div className="w-20">TIME</div>
                   <div>MARKET</div>
-                  <div>SIDE</div>
+                  <div>COIN</div>
+                  <div className="w-12">SIDE</div>
                   <div className="text-right">PRICE</div>
                   <div className="text-right">SIZE</div>
                   <div>STATUS</div>
                   <div>ORDER ID</div>
-                  <div className="text-right">PnL</div>
                 </div>
                 {[...Array(5)].map((_, i) => (
-                  <div key={i} className="grid grid-cols-8 gap-4 text-sm py-2 px-2">
+                  <div key={i} className="grid grid-cols-8 gap-2 text-sm py-2 px-2">
                     <Skeleton className="h-4 w-12" />
                     <Skeleton className="h-4 w-20" />
                     <Skeleton className="h-4 w-8" />
@@ -409,15 +376,15 @@ export default function PositionsTable() {
             ) : historyData?.success && historyData.data?.length ? (
               <div className="max-h-96 overflow-y-auto">
                 {/* Headers */}
-                <div className="grid grid-cols-8 gap-4 text-xs text-muted-foreground mb-2 px-2 border-b border-gray-700 pb-2">
-                  <div>TIME</div>
+                <div className="grid grid-cols-8 gap-2 text-xs text-muted-foreground mb-2 px-2 border-b border-gray-700 pb-2">
+                  <div className="w-20">TIME</div>
                   <div>MARKET</div>
-                  <div>SIDE</div>
+                  <div>COIN</div>
+                  <div className="w-12">SIDE</div>
                   <div className="text-right">PRICE</div>
                   <div className="text-right">SIZE</div>
                   <div>STATUS</div>
                   <div>ORDER ID</div>
-                  <div className="text-right">PnL</div>
                 </div>
 
                 {/* Data Rows */}
@@ -434,17 +401,17 @@ export default function PositionsTable() {
                     });
                     
                     return (
-                      <div key={`${order.oid}-${index}`} className="grid grid-cols-8 gap-4 text-sm py-2 px-2 hover:bg-trading-hover transition-colors">
-                        <div className="font-mono">{time}</div>
+                      <div key={`${order.oid}-${index}`} className="grid grid-cols-8 gap-2 text-sm py-2 px-2 hover:bg-trading-hover transition-colors">
+                        <div className="font-mono text-xs w-20">{time}</div>
                         <div className="font-mono">{order.coin}</div>
-                        <div className={`font-mono ${getSideColor(order.side)}`}>
+                        <div className="font-mono">{order.coin}</div>
+                        <div className={`font-mono text-xs w-12 ${getSideColor(order.side)}`}>
                           {order.side === 'B' ? 'BUY' : 'SELL'}
                         </div>
                         <div className="font-mono text-right">${parseFloat(order.limitPx).toLocaleString('en-US', { minimumFractionDigits: 1 })}</div>
                         <div className="font-mono text-right">{order.origSz || order.sz}</div>
                         <div className="font-mono">{status.toUpperCase()}</div>
                         <div className="font-mono">{order.oid}</div>
-                        <div className="font-mono text-right">-</div>
                       </div>
                     );
                   })}
