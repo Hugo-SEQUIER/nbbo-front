@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useUserHistoricalData, useUserPosition, useUserBalance } from '@/hooks/useUserData';
 import { useWallet } from '@/hooks/useWallet';
 import { useFundTransfer } from '@/hooks/useFundTransfer';
@@ -12,7 +13,7 @@ import { ManageFundsModal } from '@/components/ManageFundsModal';
 import { UserHistoricalDataItem, SpotBalance, AssetPosition } from '@/types/api';
 import { formatDistanceToNow } from 'date-fns';
 import { ArrowRightLeft, RefreshCw } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 
 const getStatusColor = (status: string) => {
@@ -42,6 +43,8 @@ export default function PositionsTable() {
   const { getWalletAddress, authenticated, isTradingEnabled } = useWallet();
   const address = getWalletAddress();
   const [isManageFundsModalOpen, setIsManageFundsModalOpen] = useState(false);
+  const [selectedMarket, setSelectedMarket] = useState<string>('all');
+  const [selectedCoin, setSelectedCoin] = useState<string>('all');
   
   const { data: positionData, isLoading: positionsLoading, error: positionsError } = useUserPosition(address);
   const { data: balanceData, isLoading: balanceLoading, error: balanceError, refetch: refetchBalance } = useUserBalance(address);
@@ -62,40 +65,119 @@ export default function PositionsTable() {
   const handleFundTransfer = async (fromDex: string, toDex: string, amount: number) => {
     const success = await transferFunds(fromDex, toDex, amount);
     if (success) {
-      // Refresh balance data after successful transfer
       await refetchBalance();
     }
   };
 
+  // Extract unique markets and coins from all data sources
+  const { uniqueMarkets, uniqueCoins } = useMemo(() => {
+    const markets = new Set<string>();
+    const coins = new Set<string>();
+
+    // Extract from balance data (positions)
+    if (balanceData?.success && balanceData.data) {
+      Object.entries(balanceData.data).forEach(([exchangeName, exchangeData]) => {
+        if (typeof exchangeData === 'object' && exchangeData && 'assetPositions' in exchangeData) {
+          exchangeData.assetPositions.forEach((position: AssetPosition) => {
+            const coinField = position.position.coin || '';
+            const coinParts = coinField.split(':');
+            const market = coinParts.length > 1 ? coinParts[0] : exchangeName;
+            const coin = coinParts.length > 1 ? coinParts[1] : coinField;
+            
+            markets.add(market);
+            if (coin) coins.add(coin);
+          });
+        }
+      });
+    }
+
+    // Extract from history data (orders)
+    if (historyData?.success && historyData.data) {
+      historyData.data.forEach((item: UserHistoricalDataItem) => {
+        const coinField = item.order.coin || '';
+        const coinParts = coinField.split(':');
+        const market = coinParts.length > 1 ? coinParts[0] : 'UNKNOWN';
+        const coin = coinParts.length > 1 ? coinParts[1] : coinField;
+        
+        markets.add(market);
+        if (coin) coins.add(coin);
+      });
+    }
+
+    return {
+      uniqueMarkets: Array.from(markets).sort(),
+      uniqueCoins: Array.from(coins).sort()
+    };
+  }, [balanceData, historyData]);
+
   return (
     <Card className="bg-trading-panel border-trading-border">
       <Tabs defaultValue="positions" className="w-full">
-        <TabsList className="w-full justify-start bg-transparent border-b border-trading-border rounded-none p-0">
-          <TabsTrigger 
-            value="positions" 
-            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-crypto-green rounded-none px-6 py-3"
-          >
-            POSITIONS
-          </TabsTrigger>
-          <TabsTrigger 
-            value="orders" 
-            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-crypto-green rounded-none px-6 py-3"
-          >
-            OPEN ORDERS
-          </TabsTrigger>
-          <TabsTrigger 
-            value="history" 
-            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-crypto-green rounded-none px-6 py-3"
-          >
-            ORDER HISTORY
-          </TabsTrigger>
-          <TabsTrigger 
-            value="debug" 
-            className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-crypto-green rounded-none px-6 py-3"
-          >
-            DEBUG
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between border-b border-trading-border">
+          <TabsList className="bg-transparent border-none rounded-none p-0">
+            <TabsTrigger 
+              value="positions" 
+              className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-crypto-green rounded-none px-6 py-3"
+            >
+              POSITIONS
+            </TabsTrigger>
+            <TabsTrigger 
+              value="orders" 
+              className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-crypto-green rounded-none px-6 py-3"
+            >
+              OPEN ORDERS
+            </TabsTrigger>
+            <TabsTrigger 
+              value="history" 
+              className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-crypto-green rounded-none px-6 py-3"
+            >
+              ORDER HISTORY
+            </TabsTrigger>
+            <TabsTrigger 
+              value="debug" 
+              className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-crypto-green rounded-none px-6 py-3"
+            >
+              DEBUG
+            </TabsTrigger>
+          </TabsList>
+          
+          {/* Filter Dropdowns */}
+          <div className="flex items-center gap-3 px-6 py-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Market:</span>
+              <Select value={selectedMarket} onValueChange={setSelectedMarket}>
+                <SelectTrigger className="w-24 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {uniqueMarkets.map((market) => (
+                    <SelectItem key={market} value={market}>
+                      {market.toUpperCase()}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Coin:</span>
+              <Select value={selectedCoin} onValueChange={setSelectedCoin}>
+                <SelectTrigger className="w-20 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {uniqueCoins.map((coin) => (
+                    <SelectItem key={coin} value={coin}>
+                      {coin}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
 
         <TabsContent value="positions" className="p-0 mt-0">
           <TooltipProvider>
@@ -236,7 +318,20 @@ export default function PositionsTable() {
                       }
                     });
 
-                    return allPositions.length > 0 ? (
+                  
+                    const filteredPositions = allPositions.filter(({exchange, position}) => {
+                      const coinField = position.position.coin || '';
+                      const coinParts = coinField.split(':');
+                      const market = coinParts.length > 1 ? coinParts[0] : exchange;
+                      const coin = coinParts.length > 1 ? coinParts[1] : coinField;
+                      
+                      const marketMatch = selectedMarket === 'all' || market === selectedMarket;
+                      const coinMatch = selectedCoin === 'all' || coin === selectedCoin;
+                      
+                      return marketMatch && coinMatch;
+                    });
+
+                    return filteredPositions.length > 0 ? (
                       <div>
                         <div className="grid grid-cols-7 gap-4 text-xs text-muted-foreground mb-2 px-2 border-b border-gray-700 pb-2">
                           <div>EXCHANGE</div>
@@ -248,7 +343,7 @@ export default function PositionsTable() {
                           <div className="text-right">TOTAL RAW USD</div>
                         </div>
                         <div className="space-y-1">
-                          {allPositions.map(({exchange, position, exchangeData}, index: number) => {
+                          {filteredPositions.map(({exchange, position, exchangeData}, index: number) => {
                             const positionValue = parseFloat(position.position.positionValue);
                             const unrealizedPnl = parseFloat(position.position.unrealizedPnl);
                             const totalRawUsd = parseFloat(exchangeData.marginSummary?.totalRawUsd || '0');
@@ -349,7 +444,21 @@ export default function PositionsTable() {
             ) : historyData?.success && historyData.data ? (
               (() => {
                 const openOrders = historyData.data.filter(item => item.status === 'open');
-                return openOrders.length > 0 ? (
+                
+                
+                const filteredOpenOrders = openOrders.filter((item) => {
+                  const coinField = item.order.coin || '';
+                  const coinParts = coinField.split(':');
+                  const market = coinParts.length > 1 ? coinParts[0] : 'UNKNOWN';
+                  const coin = coinParts.length > 1 ? coinParts[1] : coinField;
+                  
+                  const marketMatch = selectedMarket === 'all' || market === selectedMarket;
+                  const coinMatch = selectedCoin === 'all' || coin === selectedCoin;
+                  
+                  return marketMatch && coinMatch;
+                });
+                
+                return filteredOpenOrders.length > 0 ? (
                   <div className="max-h-96 overflow-y-auto">
                     {/* Headers */}
                     <div className="grid grid-cols-8 gap-2 text-xs text-muted-foreground mb-2 px-2 border-b border-gray-700 pb-2">
@@ -365,7 +474,7 @@ export default function PositionsTable() {
 
                     {/* Data Rows */}
                     <div className="space-y-1">
-                      {openOrders.map((item: UserHistoricalDataItem, index: number) => {
+                      {filteredOpenOrders.map((item: UserHistoricalDataItem, index: number) => {
                         const { order, status, statusTimestamp } = item;
                         const time = new Date(statusTimestamp).toLocaleTimeString('en-US', { 
                           day: '2-digit',
@@ -451,22 +560,37 @@ export default function PositionsTable() {
                 </AlertDescription>
               </Alert>
             ) : historyData?.success && historyData.data?.length ? (
-              <div className="max-h-96 overflow-y-auto">
-                {/* Headers */}
-                <div className="grid grid-cols-8 gap-2 text-xs text-muted-foreground mb-2 px-2 border-b border-gray-700 pb-2">
-                  <div className="w-20">TIME</div>
-                  <div>MARKET</div>
-                  <div>COIN</div>
-                  <div className="w-12">SIDE</div>
-                  <div className="text-right">PRICE</div>
-                  <div className="text-right">SIZE</div>
-                  <div>STATUS</div>
-                  <div>ORDER ID</div>
-                </div>
+              (() => {
+                // Filter order history based on selected market and coin
+                const filteredHistoryData = historyData.data.filter((item) => {
+                  const coinField = item.order.coin || '';
+                  const coinParts = coinField.split(':');
+                  const market = coinParts.length > 1 ? coinParts[0] : 'UNKNOWN';
+                  const coin = coinParts.length > 1 ? coinParts[1] : coinField;
+                  
+                  const marketMatch = selectedMarket === 'all' || market === selectedMarket;
+                  const coinMatch = selectedCoin === 'all' || coin === selectedCoin;
+                  
+                  return marketMatch && coinMatch;
+                });
 
-                {/* Data Rows */}
-                <div className="space-y-1">
-                  {historyData.data.map((item: UserHistoricalDataItem, index: number) => {
+                return filteredHistoryData.length > 0 ? (
+                  <div className="max-h-96 overflow-y-auto">
+                    {/* Headers */}
+                    <div className="grid grid-cols-8 gap-2 text-xs text-muted-foreground mb-2 px-2 border-b border-gray-700 pb-2">
+                      <div className="w-20">TIME</div>
+                      <div>MARKET</div>
+                      <div>COIN</div>
+                      <div className="w-12">SIDE</div>
+                      <div className="text-right">PRICE</div>
+                      <div className="text-right">SIZE</div>
+                      <div>STATUS</div>
+                      <div>ORDER ID</div>
+                    </div>
+
+                    {/* Data Rows */}
+                    <div className="space-y-1">
+                      {filteredHistoryData.map((item: UserHistoricalDataItem, index: number) => {
                     const { order, status, statusTimestamp } = item;
                     const time = new Date(statusTimestamp).toLocaleTimeString('en-US', {
                       day: '2-digit',
@@ -500,6 +624,12 @@ export default function PositionsTable() {
                   })}
                 </div>
               </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No matching order history found
+                  </div>
+                );
+              })()
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 No order history found
