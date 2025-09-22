@@ -13,6 +13,7 @@ import { ManageFundsModal } from '@/components/ManageFundsModal';
 import { UserHistoricalDataItem, SpotBalance, AssetPosition } from '@/types/api';
 import { formatDistanceToNow } from 'date-fns';
 import { ArrowRightLeft, RefreshCw } from 'lucide-react';
+import { getExchangeDisplayName, apiDexIdToUiId, uiIdToApiDexId } from '@/utils/exchangeUtils';
 import { useState, useMemo } from 'react';
 
 
@@ -51,19 +52,26 @@ export default function PositionsTable() {
   const { data: historyData, isLoading: historyLoading, error: historyError } = useUserHistoricalData(address);
   const { transferFunds, isTransferring, canTransfer } = useFundTransfer();
 
+
   // Prepare exchange data for the fund management modal
   const exchanges = balanceData?.success && balanceData.data 
     ? Object.entries(balanceData.data)
         .filter(([key, value]) => key !== 'total_account_value' && typeof value === 'object' && value && 'withdrawable' in value)
-        .map(([name, data]) => ({
-          name,
+        .map(([apiDexId, data]) => ({
+          name: apiDexIdToUiId(apiDexId), // Convert to UI-safe identifier
+          apiDexId, // Keep original API dexId
+          displayName: getExchangeDisplayName(apiDexId), // Add display name
           withdrawable: parseFloat((data as any).withdrawable || '0'),
           totalRawUsd: parseFloat((data as any).marginSummary?.totalRawUsd || '0'),
         }))
     : [];
 
   const handleFundTransfer = async (fromDex: string, toDex: string, amount: number) => {
-    const success = await transferFunds(fromDex, toDex, amount);
+    // Convert UI identifiers back to API DEX IDs
+    const fromApiDexId = uiIdToApiDexId(fromDex);
+    const toApiDexId = uiIdToApiDexId(toDex);
+    
+    const success = await transferFunds(fromApiDexId, toApiDexId, amount);
     if (success) {
       await refetchBalance();
     }
@@ -251,7 +259,7 @@ export default function PositionsTable() {
                           className="flex items-center gap-2 opacity-50"
                         >
                           <ArrowRightLeft className="h-4 w-4" />
-                          Enable Trading Required
+                          Connect Wallet Required
                         </Button>
                       )}
                     </div>
@@ -359,8 +367,8 @@ export default function PositionsTable() {
                             
                             return (
                               <div key={`${exchange}-${position.position.coin}-${index}`} className="grid grid-cols-7 gap-4 text-sm py-2 px-2 hover:bg-trading-hover transition-colors">
-                                <div className="font-mono font-bold uppercase">{market}</div>
-                                <div className="font-mono">{coin}</div>
+                                <div className="font-mono font-bold">{getExchangeDisplayName(exchange)}</div>
+                                <div className="font-mono">{position.position.coin}</div>
                                 <div className={`font-mono text-right ${size >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                   {Math.abs(size).toFixed(4)}
                                 </div>
