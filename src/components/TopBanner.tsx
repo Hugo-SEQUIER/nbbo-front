@@ -7,7 +7,7 @@ const TopBanner = () => {
       <div className="flex items-center justify-between px-6 py-2">
         {/* Logo and Brand */}
         <div className="flex items-center gap-4">
-          <img className="h-12 w-auto ml-4" src="/public/logo_white.png" alt="logo" />
+          <img className="h-12 w-auto ml-4" src="/logo_white.png" alt="logo" />
         </div>
 
         {/* Right side - Status and Info */}
