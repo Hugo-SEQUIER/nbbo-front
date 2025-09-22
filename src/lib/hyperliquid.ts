@@ -134,3 +134,78 @@ export async function createExchangeClient(opts: {
     const { ExchangeClient } = await getHL();
     return new ExchangeClient({ wallet, transport, isTestnet });
 }
+
+/**
+ * Transfer assets between DEXs using API wallet
+ */
+export async function exchangeSendAsset(params: {
+    apiWalletPrivateKey: string;
+    destination: string;
+    sourceDex: string;
+    destinationDex: string;
+    token: string;
+    amount: string;
+    signatureChainId: string;
+    hyperliquidChain?: "Testnet" | "Mainnet" | string;
+    fromSubAccount?: string;
+}): Promise<{ status: string; response?: any }> {
+    const { 
+        apiWalletPrivateKey, 
+        destination, 
+        sourceDex, 
+        destinationDex, 
+        token, 
+        amount, 
+        signatureChainId 
+    } = params;
+    const hyperliquidChain = params.hyperliquidChain ?? "Testnet";
+    const fromSubAccount = params.fromSubAccount ?? "";
+
+    try {
+        const { signUserSignedAction, userSignedActionEip712Types } = await getSigning();
+
+        // Create a wallet client from the API wallet private key
+        const { privateKeyToAccount } = await import('viem/accounts');
+        const privateKey = apiWalletPrivateKey.startsWith('0x') 
+            ? apiWalletPrivateKey as `0x${string}`
+            : `0x${apiWalletPrivateKey}` as `0x${string}`;
+        const account = privateKeyToAccount(privateKey);
+        
+        const walletClient = {
+            account,
+            signTypedData: async (args: any) => {
+                return account.signTypedData(args);
+            },
+            getChainId: async () => {
+                return parseInt(signatureChainId, 16);
+            },
+        };
+
+        const action = {
+            type: "sendAsset",
+            hyperliquidChain,
+            signatureChainId,
+            destination,
+            sourceDex,
+            destinationDex,
+            token,
+            amount,
+            fromSubAccount,
+            nonce: Date.now(),
+        } as const;
+
+        const signature = await signUserSignedAction({
+            wallet: walletClient,
+            action,
+            types: userSignedActionEip712Types[action.type],
+        });
+
+        return await postExchange({ action, signature, nonce: action.nonce });
+    } catch (error) {
+        console.error("Asset transfer error:", error);
+        return { 
+            status: "error", 
+            response: error instanceof Error ? error.message : "Unknown error" 
+        };
+    }
+}

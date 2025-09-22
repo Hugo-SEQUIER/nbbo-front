@@ -7,8 +7,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useUserHistoricalData, useUserPosition, useUserBalance } from '@/hooks/useUserData';
 import { useWallet } from '@/hooks/useWallet';
+import { useFundTransfer } from '@/hooks/useFundTransfer';
+import { ManageFundsModal } from '@/components/ManageFundsModal';
 import { UserHistoricalDataItem, SpotBalance, AssetPosition } from '@/types/api';
 import { formatDistanceToNow } from 'date-fns';
+import { ArrowRightLeft, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
 
 
 const getStatusColor = (status: string) => {
@@ -35,12 +39,33 @@ const getSideColor = (side: string) => {
 };
 
 export default function PositionsTable() {
-  const { getWalletAddress, authenticated } = useWallet();
+  const { getWalletAddress, authenticated, isTradingEnabled } = useWallet();
   const address = getWalletAddress();
+  const [isManageFundsModalOpen, setIsManageFundsModalOpen] = useState(false);
   
   const { data: positionData, isLoading: positionsLoading, error: positionsError } = useUserPosition(address);
-  const { data: balanceData, isLoading: balanceLoading, error: balanceError } = useUserBalance(address);
+  const { data: balanceData, isLoading: balanceLoading, error: balanceError, refetch: refetchBalance } = useUserBalance(address);
   const { data: historyData, isLoading: historyLoading, error: historyError } = useUserHistoricalData(address);
+  const { transferFunds, isTransferring, canTransfer } = useFundTransfer();
+
+  // Prepare exchange data for the fund management modal
+  const exchanges = balanceData?.success && balanceData.data 
+    ? Object.entries(balanceData.data)
+        .filter(([key, value]) => key !== 'total_account_value' && typeof value === 'object' && value && 'withdrawable' in value)
+        .map(([name, data]) => ({
+          name,
+          withdrawable: parseFloat((data as any).withdrawable || '0'),
+          totalRawUsd: parseFloat((data as any).marginSummary?.totalRawUsd || '0'),
+        }))
+    : [];
+
+  const handleFundTransfer = async (fromDex: string, toDex: string, amount: number) => {
+    const success = await transferFunds(fromDex, toDex, amount);
+    if (success) {
+      // Refresh balance data after successful transfer
+      await refetchBalance();
+    }
+  };
 
   return (
     <Card className="bg-trading-panel border-trading-border">
@@ -110,6 +135,46 @@ export default function PositionsTable() {
                 </Alert>
               ) : balanceData?.success && balanceData.data ? (
                 <div className="space-y-6">
+                  {/* Fund Management Actions */}
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold">Account Overview</h3>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => refetchBalance()}
+                        disabled={balanceLoading}
+                        className="flex items-center gap-2"
+                      >
+                        <RefreshCw className={`h-4 w-4 ${balanceLoading ? 'animate-spin' : ''}`} />
+                        Refresh
+                      </Button>
+                      {canTransfer && exchanges.length > 1 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsManageFundsModalOpen(true)}
+                          disabled={isTransferring}
+                          className="flex items-center gap-2 border-crypto-green text-crypto-green hover:bg-crypto-green hover:text-black"
+                        >
+                          <ArrowRightLeft className="h-4 w-4" />
+                          Manage Funds
+                        </Button>
+                      )}
+                      {!canTransfer && authenticated && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled
+                          className="flex items-center gap-2 opacity-50"
+                        >
+                          <ArrowRightLeft className="h-4 w-4" />
+                          Enable Trading Required
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Account Summary */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
@@ -479,6 +544,15 @@ export default function PositionsTable() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Manage Funds Modal */}
+      <ManageFundsModal
+        isOpen={isManageFundsModalOpen}
+        onClose={() => setIsManageFundsModalOpen(false)}
+        onTransfer={handleFundTransfer}
+        exchanges={exchanges}
+        isTransferring={isTransferring}
+      />
     </Card>
   );
 }
