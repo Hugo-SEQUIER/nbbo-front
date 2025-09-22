@@ -12,7 +12,9 @@ import {
 import { ArrowRightLeft, Loader2 } from 'lucide-react';
 
 interface ExchangeBalance {
-  name: string;
+  name: string; // UI-safe identifier (e.g., "main", "btcx", "merrli")
+  apiDexId: string; // Original API dexId (e.g., "", "btcx", "merrli")
+  displayName: string; // Display name for UI
   withdrawable: number;
   totalRawUsd: number;
 }
@@ -85,7 +87,7 @@ export function ManageFundsModal({
             <div className="space-y-2">
               {exchanges.map((exchange) => (
                 <div key={exchange.name} className="flex justify-between items-center text-xs">
-                  <div className="font-mono font-bold uppercase">{exchange.name}</div>
+                  <div className="font-mono font-bold">{exchange.displayName}</div>
                   <div className="text-right">
                     <div className="font-medium text-foreground">
                       Total: ${exchange.totalRawUsd.toFixed(2)}
@@ -114,7 +116,7 @@ export function ManageFundsModal({
                     .map((exchange) => (
                       <SelectItem key={exchange.name} value={exchange.name}>
                         <div className="flex items-center justify-between w-full">
-                          <span className="font-mono font-bold uppercase">{exchange.name}</span>
+                          <span className="font-mono font-bold">{exchange.displayName}</span>
                           <span className="text-muted-foreground ml-2">
                             ${exchange.withdrawable.toFixed(2)} available
                           </span>
@@ -138,7 +140,7 @@ export function ManageFundsModal({
                     .map((exchange) => (
                       <SelectItem key={exchange.name} value={exchange.name}>
                         <div className="flex items-center justify-between w-full">
-                          <span className="font-mono font-bold uppercase">{exchange.name}</span>
+                          <span className="font-mono font-bold">{exchange.displayName}</span>
                           <span className="text-muted-foreground ml-2">
                             ${exchange.totalRawUsd.toFixed(2)} current
                           </span>
@@ -184,17 +186,25 @@ export function ManageFundsModal({
           </div>
 
           {/* Transfer Summary */}
-          {fromDex && toDex && amountNum > 0 && (
-            <div className="p-3 bg-secondary/30 rounded-lg border">
-              <div className="text-sm font-medium text-foreground mb-2">Transfer Summary</div>
-              <div className="flex items-center gap-2 text-sm">
-                <span className="font-mono font-bold uppercase text-crypto-green">{fromDex}</span>
-                <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
-                <span className="font-mono font-bold uppercase text-crypto-green">{toDex}</span>
-                <span className="ml-auto font-mono">${amountNum.toFixed(2)} USDC</span>
+          {fromDex && toDex && amountNum > 0 && (() => {
+            const fromExchange = exchanges.find(ex => ex.name === fromDex);
+            const toExchange = exchanges.find(ex => ex.name === toDex);
+            return (
+              <div className="p-3 bg-secondary/30 rounded-lg border">
+                <div className="text-sm font-medium text-foreground mb-2">Transfer Summary</div>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-mono font-bold text-crypto-green">
+                    {fromExchange?.displayName || fromDex}
+                  </span>
+                  <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-mono font-bold text-crypto-green">
+                    {toExchange?.displayName || toDex}
+                  </span>
+                  <span className="ml-auto font-mono">${amountNum.toFixed(2)} USDC</span>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-2">

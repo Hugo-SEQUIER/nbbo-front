@@ -35,11 +35,17 @@ async function rateLimit() {
 /**
  * Posts an exchange request to Hyperliquid
  */
-async function postExchange(payload: any): Promise<{ status: string; response?: any }> {
+async function postExchange(payload: any, isTestnet: boolean = true): Promise<{ status: string; response?: any }> {
     await rateLimit();
     
     try {
-        const response = await fetch("https://api.hyperliquid-testnet.xyz/exchange", {
+        const baseUrl = isTestnet 
+            ? "https://api.hyperliquid-testnet.xyz" 
+            : "https://api.hyperliquid.xyz";
+        
+        console.log('Posting to exchange API:', baseUrl + '/exchange', payload);
+        
+        const response = await fetch(baseUrl + "/exchange", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -47,8 +53,12 @@ async function postExchange(payload: any): Promise<{ status: string; response?: 
             body: JSON.stringify(payload),
         });
 
+        console.log('Exchange API response status:', response.status);
+
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text();
+            console.error('Exchange API error response:', errorText);
+            throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
         }
 
         const data = await response.json();
@@ -93,7 +103,8 @@ export async function exchangeApproveApiWallet(params: {
             types: userSignedActionEip712Types[action.type],
         });
 
-        return await postExchange({ action, signature, nonce: action.nonce });
+        const isTestnet = hyperliquidChain === "Testnet";
+        return await postExchange({ action, signature, nonce: action.nonce }, isTestnet);
     } catch (error) {
         console.error("API wallet approval error:", error);
         return { 
@@ -136,11 +147,12 @@ export async function createExchangeClient(opts: {
 }
 
 /**
- * Transfer assets between DEXs using API wallet
+ * Transfer assets between DEXs using USER wallet (user-signed action)
+ * sendAsset is a USER-SIGNED action that must be signed by the account owner
  */
 export async function exchangeSendAsset(params: {
-    apiWalletPrivateKey: string;
-    destination: string;
+    userWalletClient: any; // The user's main wallet client (from Privy)
+    accountAddress: string; // The main account that HAS the funds (user's main wallet)
     sourceDex: string;
     destinationDex: string;
     token: string;
@@ -150,8 +162,8 @@ export async function exchangeSendAsset(params: {
     fromSubAccount?: string;
 }): Promise<{ status: string; response?: any }> {
     const { 
-        apiWalletPrivateKey, 
-        destination, 
+        userWalletClient, // USER's wallet signs (not API wallet!)
+        accountAddress, // This is the account that has the funds
         sourceDex, 
         destinationDex, 
         token, 
@@ -162,30 +174,15 @@ export async function exchangeSendAsset(params: {
     const fromSubAccount = params.fromSubAccount ?? "";
 
     try {
+        // Use USER signing (sendAsset is user-signed action)
         const { signUserSignedAction, userSignedActionEip712Types } = await getSigning();
 
-        // Create a wallet client from the API wallet private key
-        const { privateKeyToAccount } = await import('viem/accounts');
-        const privateKey = apiWalletPrivateKey.startsWith('0x') 
-            ? apiWalletPrivateKey as `0x${string}`
-            : `0x${apiWalletPrivateKey}` as `0x${string}`;
-        const account = privateKeyToAccount(privateKey);
-        
-        const walletClient = {
-            account,
-            signTypedData: async (args: any) => {
-                return account.signTypedData(args);
-            },
-            getChainId: async () => {
-                return parseInt(signatureChainId, 16);
-            },
-        };
-
+        // sendAsset action (user-signed)
         const action = {
             type: "sendAsset",
             hyperliquidChain,
             signatureChainId,
-            destination,
+            destination: accountAddress, // Internal transfer - same account
             sourceDex,
             destinationDex,
             token,
@@ -194,13 +191,28 @@ export async function exchangeSendAsset(params: {
             nonce: Date.now(),
         } as const;
 
+        console.log('SendAsset action (USER-SIGNED CORRECTED):', {
+            ...action,
+            userWithFunds: accountAddress,
+            userSigner: userWalletClient.account?.address || 'Unknown',
+            actionType: 'User-signed action',
+            transferType: 'Internal transfer between DEXs',
+            note: 'sendAsset must be signed by account owner, not API wallet'
+        });
+
         const signature = await signUserSignedAction({
-            wallet: walletClient,
+            wallet: userWalletClient, // USER wallet signs
             action,
             types: userSignedActionEip712Types[action.type],
         });
 
-        return await postExchange({ action, signature, nonce: action.nonce });
+        console.log('User signature generated:', signature);
+
+        const isTestnet = hyperliquidChain === "Testnet";
+        const result = await postExchange({ action, signature, nonce: action.nonce }, isTestnet);
+        console.log('Exchange API response:', result);
+        
+        return result;
     } catch (error) {
         console.error("Asset transfer error:", error);
         return { 
