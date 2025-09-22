@@ -94,8 +94,8 @@ export function useFundTransfer() {
             };
 
             const result = await exchangeSendAsset({
-                userWalletClient, // USER wallet signs (not API wallet!)
-                accountAddress: getWalletAddress()!, // The account that HAS the funds (your main wallet)
+                walletClient:  userWalletClient, // USER wallet signs (not API wallet!)
+                destination: getWalletAddress()!, // The account that HAS the funds (your main wallet)
                 sourceDex: fromDex, // Don't convert to lowercase - keep original format
                 destinationDex: toDex, // Don't convert to lowercase - keep original format
                 token: "USDC", // Standard USDC format

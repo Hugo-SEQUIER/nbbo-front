@@ -1,223 +1,365 @@
-// Hyperliquid API integration for API wallet functionality
-
-// Dynamic imports for Hyperliquid SDK
 const HL_URL = "https://esm.sh/jsr/@nktkas/hyperliquid";
 const SIGN_URL = "https://esm.sh/jsr/@nktkas/hyperliquid/signing";
 
-let cachedHl: any = null;
-let cachedSigning: any = null;
+let cachedHl: unknown | null = null;
+let cachedSigning: unknown | null = null;
 
 export async function getHL() {
-    if (cachedHl) return cachedHl;
-    cachedHl = await import(/* @vite-ignore */ HL_URL);
-    return cachedHl;
+  if (cachedHl) return cachedHl;
+  cachedHl = await import(/* @vite-ignore */ HL_URL);
+  return cachedHl;
 }
 
 export async function getSigning() {
-    if (cachedSigning) return cachedSigning;
-    cachedSigning = await import(/* @vite-ignore */ SIGN_URL);
-    return cachedSigning;
+  if (cachedSigning) return cachedSigning;
+  cachedSigning = await import(/* @vite-ignore */ SIGN_URL);
+  return cachedSigning;
 }
 
-// Rate limiting to prevent API abuse
-const MIN_API_INTERVAL = 1000; // Minimum 1 second between API calls
-let lastApiCall = 0;
-
-async function rateLimit() {
-    const now = Date.now();
-    const timeSinceLastCall = now - lastApiCall;
-    if (timeSinceLastCall < MIN_API_INTERVAL) {
-        await new Promise(resolve => setTimeout(resolve, MIN_API_INTERVAL - timeSinceLastCall));
-    }
-    lastApiCall = Date.now();
+// Convenience helpers (optional)
+export async function createHttpTransport(options?: Record<string, unknown>): Promise<unknown> {
+  const hl: any = await getHL();
+  return new hl.HttpTransport(options);
 }
 
-/**
- * Posts an exchange request to Hyperliquid
- */
-async function postExchange(payload: any, isTestnet: boolean = true): Promise<{ status: string; response?: any }> {
-    await rateLimit();
-    
-    try {
-        const baseUrl = isTestnet 
-            ? "https://api.hyperliquid-testnet.xyz" 
-            : "https://api.hyperliquid.xyz";
-        
-        console.log('Posting to exchange API:', baseUrl + '/exchange', payload);
-        
-        const response = await fetch(baseUrl + "/exchange", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-        });
-
-        console.log('Exchange API response status:', response.status);
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Exchange API error response:', errorText);
-            throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
-        }
-
-        const data = await response.json();
-        return { status: "ok", response: data };
-    } catch (error) {
-        console.error("Exchange API error:", error);
-        return { 
-            status: "error", 
-            response: error instanceof Error ? error.message : "Unknown error" 
-        };
-    }
+export async function createExchangeClient(params: Record<string, unknown>): Promise<unknown> {
+  const hl: any = await getHL();
+  return new hl.ExchangeClient(params);
 }
 
-/**
- * Approves an API wallet for trading on Hyperliquid
- */
+// Info API helpers for dynamic metadata
+import type { MetaAndAssetCtxsResponse, PerpDex } from "../types/hyperliquid";
+
+// Hyperliquid API base URLs
+const TESTNET_BASE_URL = "https://api.hyperliquid-testnet.xyz";
+const MAINNET_BASE_URL = "https://api.hyperliquid.xyz";
+
+const getApiBaseUrl = (isTestnet: boolean = true) => isTestnet ? TESTNET_BASE_URL : MAINNET_BASE_URL;
+
+const INFO_URL = (isTestnet: boolean = true) => `${getApiBaseUrl(isTestnet)}/info`;
+const EXCHANGE_URL = (isTestnet: boolean = true) => `${getApiBaseUrl(isTestnet)}/exchange`;
+
+export async function fetchPerpDexs(): Promise<PerpDex[]> {
+  return await fetchPerpDexsCached();
+}
+
+export async function fetchMetaAndAssetCtxs(dex: string, isTestnet: boolean = true): Promise<MetaAndAssetCtxsResponse> {
+  const res = await fetch(INFO_URL(isTestnet), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: "metaAndAssetCtxs", dex }),
+  });
+  return (await res.json()) as MetaAndAssetCtxsResponse;
+}
+
+// Generic helpers to centralize API calls
+export async function postExchange(body: {
+  action: unknown;
+  signature: string;
+  nonce: number;
+}, isTestnet: boolean = true): Promise<{ status: string; response?: unknown }> {
+  const exchangeUrl = EXCHANGE_URL(isTestnet);
+  const now = Date.now();
+  const lastCall = apiCallTimes[exchangeUrl] || 0;
+  const timeSinceLastCall = now - lastCall;
+
+  if (timeSinceLastCall < MIN_API_INTERVAL) {
+    await new Promise((resolve) => setTimeout(resolve, MIN_API_INTERVAL - timeSinceLastCall));
+  }
+
+  apiCallTimes[exchangeUrl] = Date.now();
+
+  const res = await fetch(exchangeUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return (await res.json()) as { status: string; response?: unknown };
+}
+
+export async function postInfo<T = unknown>(payload: unknown, isTestnet: boolean = true): Promise<T> {
+  const infoUrl = INFO_URL(isTestnet);
+  const now = Date.now();
+  const lastCall = apiCallTimes[infoUrl] || 0;
+  const timeSinceLastCall = now - lastCall;
+
+  if (timeSinceLastCall < MIN_API_INTERVAL) {
+    await new Promise((resolve) => setTimeout(resolve, MIN_API_INTERVAL - timeSinceLastCall));
+  }
+
+  apiCallTimes[infoUrl] = Date.now();
+
+  const res = await fetch(infoUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return (await res.json()) as T;
+}
+
+export async function infoClearinghouseState(user: string, dex: string, isTestnet: boolean = true) {
+  const result = await postInfo({ type: "clearinghouseState", user, dex }, isTestnet);
+  return result;
+}
+
+export async function infoMainDexClearinghouseState(user: string, isTestnet: boolean = true) {
+  const result = await postInfo({ type: "clearinghouseState", user }, isTestnet);
+  return result;
+}
+
+export async function infoOpenOrders(user: string, dex: string, isTestnet: boolean = true) {
+  return await postInfo({ type: "openOrders", user, dex }, isTestnet);
+}
+
+export async function infoHistoricalOrders(user: string, dex: string, nMax: number, isTestnet: boolean = true) {
+  return await postInfo({ type: "historicalOrders", user, dex, nMax }, isTestnet);
+}
+
+export async function fetchPerpDeployAuctionStatus(isTestnet: boolean = true) {
+  return await postInfo({ type: "perpDeployAuctionStatus" }, isTestnet);
+}
+
+// High-level exchange helpers
 export async function exchangeApproveApiWallet(params: {
-    walletClient: any;
-    apiWalletAddress: string;
-    apiWalletName: string;
-    signatureChainId: string;
-    hyperliquidChain?: "Testnet" | "Mainnet" | string;
-}): Promise<{ status: string; response?: any }> {
-    const { walletClient, apiWalletAddress, apiWalletName, signatureChainId } = params;
-    const hyperliquidChain = params.hyperliquidChain ?? "Testnet";
-    
-    try {
-        const { signUserSignedAction, userSignedActionEip712Types } = await getSigning();
+  walletClient: unknown;
+  apiWalletAddress: string;
+  apiWalletName: string;
+  signatureChainId: string;
+  hyperliquidChain?: "Testnet" | "Mainnet" | string;
+}): Promise<{ status: string; response?: unknown }> {
+  const { walletClient, apiWalletAddress, apiWalletName, signatureChainId } = params;
+  const hyperliquidChain = params.hyperliquidChain ?? "Testnet";
+  const { signUserSignedAction, userSignedActionEip712Types }: any = await getSigning();
 
-        const action = {
-            type: "approveAgent",
-            signatureChainId,
-            hyperliquidChain,
-            agentAddress: apiWalletAddress,
-            agentName: apiWalletName,
-            nonce: Date.now(),
-        } as const;
+  const action = {
+    type: "approveAgent",
+    signatureChainId,
+    hyperliquidChain,
+    agentAddress: apiWalletAddress,
+    agentName: apiWalletName,
+    nonce: Date.now(),
+  } as const;
 
-        const signature = await signUserSignedAction({
-            wallet: walletClient,
-            action,
-            types: userSignedActionEip712Types[action.type],
-        });
+  const signature = await signUserSignedAction({
+    wallet: walletClient as any,
+    action,
+    types: userSignedActionEip712Types[action.type],
+  });
 
-        const isTestnet = hyperliquidChain === "Testnet";
-        return await postExchange({ action, signature, nonce: action.nonce }, isTestnet);
-    } catch (error) {
-        console.error("API wallet approval error:", error);
-        return { 
-            status: "error", 
-            response: error instanceof Error ? error.message : "Unknown error" 
-        };
-    }
+  const isTestnet = hyperliquidChain === "Testnet";
+  return await postExchange({ action, signature, nonce: action.nonce }, isTestnet);
 }
 
-/**
- * Creates HTTP transport for Hyperliquid
- */
-export async function createHttpTransport(opts: { isTestnet?: boolean } = {}) {
-    const { isTestnet = true } = opts;
-    const { HttpTransport } = await getHL();
-    
-    const baseUrl = isTestnet 
-        ? "https://api.hyperliquid-testnet.xyz" 
-        : "https://api.hyperliquid.xyz";
-    
-    return new HttpTransport({ url: baseUrl });
-}
-
-/**
- * Creates exchange client for trading
- */
-export async function createExchangeClient(opts: {
-    wallet?: string | null;
-    transport: any;
-    isTestnet?: boolean;
-}) {
-    const { wallet, transport, isTestnet = true } = opts;
-    
-    if (!wallet) {
-        throw new Error("Wallet private key is required for exchange client");
-    }
-    
-    const { ExchangeClient } = await getHL();
-    return new ExchangeClient({ wallet, transport, isTestnet });
-}
-
-/**
- * Transfer assets between DEXs using USER wallet (user-signed action)
- * sendAsset is a USER-SIGNED action that must be signed by the account owner
- */
 export async function exchangeSendAsset(params: {
-    userWalletClient: any; // The user's main wallet client (from Privy)
-    accountAddress: string; // The main account that HAS the funds (user's main wallet)
-    sourceDex: string;
-    destinationDex: string;
-    token: string;
-    amount: string;
-    signatureChainId: string;
-    hyperliquidChain?: "Testnet" | "Mainnet" | string;
-    fromSubAccount?: string;
-}): Promise<{ status: string; response?: any }> {
-    const { 
-        userWalletClient, // USER's wallet signs (not API wallet!)
-        accountAddress, // This is the account that has the funds
-        sourceDex, 
-        destinationDex, 
-        token, 
-        amount, 
-        signatureChainId 
-    } = params;
-    const hyperliquidChain = params.hyperliquidChain ?? "Testnet";
-    const fromSubAccount = params.fromSubAccount ?? "";
+  walletClient: unknown;
+  destination: string;
+  sourceDex: string;
+  destinationDex: string;
+  token: string;
+  amount: string;
+  signatureChainId: string;
+  hyperliquidChain?: "Testnet" | "Mainnet" | string;
+  fromSubAccount?: string;
+}): Promise<{ status: string; response?: unknown }> {
+  const { walletClient, destination, sourceDex, destinationDex, token, amount, signatureChainId } =
+    params;
+  const hyperliquidChain = params.hyperliquidChain ?? "Testnet";
+  const fromSubAccount = params.fromSubAccount ?? "";
 
-    try {
-        // Use USER signing (sendAsset is user-signed action)
-        const { signUserSignedAction, userSignedActionEip712Types } = await getSigning();
+  const { signUserSignedAction, userSignedActionEip712Types }: any = await getSigning();
 
-        // sendAsset action (user-signed)
-        const action = {
-            type: "sendAsset",
-            hyperliquidChain,
-            signatureChainId,
-            destination: accountAddress, // Internal transfer - same account
-            sourceDex,
-            destinationDex,
-            token,
-            amount,
-            fromSubAccount,
-            nonce: Date.now(),
-        } as const;
+  const action = {
+    type: "sendAsset",
+    hyperliquidChain,
+    signatureChainId,
+    destination,
+    sourceDex,
+    destinationDex,
+    token,
+    amount,
+    fromSubAccount,
+    nonce: Date.now(),
+  } as const;
 
-        console.log('SendAsset action (USER-SIGNED CORRECTED):', {
-            ...action,
-            userWithFunds: accountAddress,
-            userSigner: userWalletClient.account?.address || 'Unknown',
-            actionType: 'User-signed action',
-            transferType: 'Internal transfer between DEXs',
-            note: 'sendAsset must be signed by account owner, not API wallet'
-        });
+  const signature = await signUserSignedAction({
+    wallet: walletClient as any,
+    action,
+    types: userSignedActionEip712Types[action.type],
+  });
 
-        const signature = await signUserSignedAction({
-            wallet: userWalletClient, // USER wallet signs
-            action,
-            types: userSignedActionEip712Types[action.type],
-        });
+  const isTestnet = hyperliquidChain === "Testnet";
+  return await postExchange({ action, signature, nonce: action.nonce }, isTestnet);
+}
 
-        console.log('User signature generated:', signature);
+const assetIdCache: Record<string, Record<string, number>> = {};
 
-        const isTestnet = hyperliquidChain === "Testnet";
-        const result = await postExchange({ action, signature, nonce: action.nonce }, isTestnet);
-        console.log('Exchange API response:', result);
-        
-        return result;
-    } catch (error) {
-        console.error("Asset transfer error:", error);
-        return { 
-            status: "error", 
-            response: error instanceof Error ? error.message : "Unknown error" 
-        };
+export async function getAssetMarkPrice(dex: string, symbol: string): Promise<number | null> {
+  try {
+    const data = await fetchMetaAndAssetCtxs(dex);
+
+    const universe = data?.[0]?.universe;
+    if (!Array.isArray(universe)) {
+      console.warn(`[Mark Price] No universe found for ${dex}`);
+      return null;
     }
+
+    // Find the index of our symbol in the universe
+    const symbolIndex = universe.findIndex((asset: any) => asset?.name === symbol);
+    if (symbolIndex === -1) {
+      console.warn(`[Mark Price] Symbol ${symbol} not found in universe for ${dex}`);
+      return null;
+    }
+
+    // Get asset contexts array
+    const assetContexts = data?.[1];
+    if (!Array.isArray(assetContexts) || assetContexts.length === 0) {
+      console.warn(`[Mark Price] No asset contexts found for ${dex}`);
+      return null;
+    }
+
+    // Get the asset context at the same index as our symbol
+    const assetContext = assetContexts[symbolIndex];
+    if (!assetContext?.markPx) {
+      console.warn(`[Mark Price] No mark price found for ${symbol} at index ${symbolIndex}`);
+      return null;
+    }
+
+    const markPrice = parseFloat(assetContext.markPx);
+    console.log(
+      `[Mark Price] Found mark price for ${symbol} (index ${symbolIndex}): $${markPrice.toFixed(6)}`,
+    );
+    return markPrice;
+  } catch (error) {
+    console.error(`[Mark Price] Error fetching mark price for ${symbol}:`, error);
+    return null;
+  }
+}
+
+export async function getAssetMidPrice(dex: string, symbol: string): Promise<number | null> {
+  try {
+    const data = await fetchMetaAndAssetCtxs(dex);
+
+    console.log(`[Asset Price] API response structure:`, data);
+
+    const universe = data?.[0]?.universe;
+    if (!Array.isArray(universe)) {
+      console.warn(`[Asset Price] No universe found for ${dex}`);
+      return null;
+    }
+
+    // Find the index of our symbol in the universe
+    const symbolIndex = universe.findIndex((asset: any) => asset?.name === symbol);
+    if (symbolIndex === -1) {
+      console.warn(`[Asset Price] Symbol ${symbol} not found in universe for ${dex}`);
+      console.log(
+        `[Asset Price] Available symbols:`,
+        universe.map((a: any) => a.name),
+      );
+      return null;
+    }
+
+    // Get asset contexts array
+    const assetContexts = data?.[1];
+    if (!Array.isArray(assetContexts) || assetContexts.length === 0) {
+      console.warn(`[Asset Price] No asset contexts found for ${dex}`);
+      return null;
+    }
+
+    // Get the asset context at the same index as our symbol
+    const assetContext = assetContexts[symbolIndex];
+    if (!assetContext?.midPx) {
+      console.warn(`[Asset Price] No mid price found for ${symbol} at index ${symbolIndex}`);
+      return null;
+    }
+
+    const midPrice = parseFloat(assetContext.midPx);
+    console.log(
+      `[Asset Price] Found mid price for ${symbol} (index ${symbolIndex}): $${midPrice.toFixed(4)}`,
+    );
+    console.log(`[Asset Price] Asset context:`, assetContext);
+    return midPrice;
+  } catch (error) {
+    console.error(`[Asset Price] Error fetching mid price for ${symbol}:`, error);
+    return null;
+  }
+}
+
+export async function resolveAssetIdForSymbol(dex: string, symbol: string): Promise<number | null> {
+  const dexKey = dex || "";
+  if (assetIdCache[dexKey]?.[symbol] !== undefined) {
+    return assetIdCache[dexKey][symbol];
+  }
+
+  // Find the perp DEX index
+  const dexs = await fetchPerpDexs();
+  const perpDexIndex = Array.isArray(dexs) ? dexs.findIndex((d) => d?.name === dex) : -1;
+  if (perpDexIndex < 0) return null;
+
+  // Find the index of the symbol within the DEX universe
+  const data = await fetchMetaAndAssetCtxs(dex);
+  const universe: Array<{ name: string }> | undefined = data?.[0]?.universe;
+  if (!Array.isArray(universe)) return null;
+  const indexInMeta = universe.findIndex((a) => a?.name === symbol);
+  if (indexInMeta < 0) return null;
+
+  const computedAssetId = 100000 + perpDexIndex * 10000 + indexInMeta;
+  assetIdCache[dexKey] = assetIdCache[dexKey] || {};
+  assetIdCache[dexKey][symbol] = computedAssetId;
+  return computedAssetId;
+}
+
+// Simple cache for perp DEX list to avoid rate limits
+let perpDexsCache: PerpDex[] | null = null;
+let perpDexsInflight: Promise<PerpDex[]> | null = null;
+
+// Rate limiting for API calls
+const apiCallTimes: Record<string, number> = {};
+const MIN_API_INTERVAL = 1000; // Minimum 1 second between API calls
+
+export async function fetchPerpDexsCached(forceRefresh: boolean = false): Promise<PerpDex[]> {
+  try {
+    if (!forceRefresh) {
+      if (perpDexsCache) return perpDexsCache;
+      // Attempt to hydrate from localStorage once
+      const ls =
+        typeof window !== "undefined" ? window.localStorage.getItem("perpDexsCacheV1") : null;
+      if (ls) {
+        try {
+          const parsed = JSON.parse(ls);
+          if (Array.isArray(parsed)) {
+            perpDexsCache = parsed;
+            return perpDexsCache;
+          }
+        } catch (_) {
+          // ignore JSON parse error and fall back to network
+        }
+      }
+      if (perpDexsInflight) return await perpDexsInflight;
+    }
+
+    perpDexsInflight = (async () => {
+      const res = await fetch(INFO_URL(true), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "perpDexs" }),
+      });
+      const data = await res.json();
+      perpDexsCache = Array.isArray(data) ? data : [];
+      try {
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("perpDexsCacheV1", JSON.stringify(perpDexsCache));
+        }
+      } catch (_) {
+        // ignore localStorage write errors (e.g., quota)
+      }
+      return perpDexsCache;
+    })();
+
+    const result = await perpDexsInflight;
+    perpDexsInflight = null;
+    return result;
+  } catch (e) {
+    perpDexsInflight = null;
+    return perpDexsCache || [];
+  }
 }
