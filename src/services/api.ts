@@ -1,4 +1,4 @@
-import { UserHistoricalData, UserPosition } from '@/types/api';
+import { UserHistoricalData, UserPosition, UserBalance } from '@/types/api';
 
 // Replace with your actual backend URL
 // Use localhost instead of 0.0.0.0 to avoid browser blocking
@@ -41,6 +41,10 @@ class ApiService {
 
     async getUserPosition(address: string): Promise<UserPosition> {
         return this.makeRequest<UserPosition>('/user-position', { address });
+    }
+
+    async getUserBalance(address: string, dexs: string): Promise<UserBalance> {
+        return this.makeRequest<UserBalance>('/user-balance', { address, dexs });
     }
 }
 
