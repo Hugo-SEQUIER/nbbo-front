@@ -65,14 +65,6 @@ export default function ExchangeBanner() {
               </div>
             </div>
 
-            {/* Mark Price */}
-            <div>
-              <div className="text-xs text-muted-foreground">MARK PRICE</div>
-              <div className="font-mono text-foreground">
-                ${exchangeData.markPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-            </div>
-
             {/* Oracle Price */}
             <div>
               <div className="text-xs text-muted-foreground">ORACLE PRICE</div>
